@@ -1,0 +1,10 @@
+- Send backtrace info to ABRT using BACKTRACE property.
+
+- Acquire and send "executable" info (path+name):
+    problem_data_add_text_editable(pd, "EXECUTABLE", "/usr/bin/sleep"); 
+  This executable should be installed from some RPM, because ABRT
+  ignores "unregistered" executables ATM.
+
+- Added path to all *.class and/or *.jar(s) because ABRT needs to be able to
+  localize classes and packages.
+

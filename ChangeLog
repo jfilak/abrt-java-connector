@@ -1,0 +1,200 @@
+2013-05-30  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/RemoteTest.java:
+	Added missing test class.
+
+2013-05-22  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Solution for JAR-style URIs:
+	"file:/home/tester/abrt_connector/bin/JarTest.jar!/SimpleTest.class"
+
+2013-05-21  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added code which acquire name and path to a main class.
+
+2013-05-20  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Basic support for acquiring main class name and using that name
+	as "executable" attribute in event send ABRT.
+
+2013-04-30  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Changed part of code for reading executable name. Name is now read
+	from link /proc/${PID}/exe.
+
+2013-04-29  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Changed names of attributes which are send to ABRT. Those names can't
+	contain dots ('.') - replaced by underscores ('_'). Renamed a few of
+	other attributes.
+
+2013-04-26  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Implemented new function used to format class signature into a form
+	suitable for ClassLoader.getResource(). Fixed stack trace list by
+	using this function.
+
+2013-04-25  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* Makefile:
+	Fixed 'clean' rule to really clean all generated files (classes and Jars).
+
+2013-04-25  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/com/redhat/abrt/test/Test.java:
+	Added new test class and its package.
+	* Makefile:
+	Added rule to compile and run new test class.
+	Updated 'clean' rule.
+	* TODO:
+	Fixed typo.
+
+2013-04-22  Jakub Filak  <jfilak@redhat.com>
+
+	* src/abrt-checker.c:
+	ABRT's own field names are used instead of constants defined in
+	abrt-checker.c.
+
+2013-04-22  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Stack trace is now saved into the log file too.
+
+2013-04-02  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Paths to class files and java archives are now printed in
+	the generated stack trace.
+
+2013-03-29  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Proper cleanup code added into many functions. Refactored stack
+	trace into its own function.
+
+2013-03-28  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Minor update: unification of names of common local variables and
+	function parameters.
+
+2013-03-27  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Agent is now able to acquire and report basic process properties -
+	command used to start JVM and command line parameters (incl. -Xfoo=bar
+	ones).
+
+2013-03-26  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Fixed behaviour of REPORT_ERRORS_TO_ABRT macro, added two macros
+	used together with __LINE__ macro, change jvmEnvironment struct
+	into new data type, code refactoring.
+
+2013-01-30  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added basic support for printing path to resource (.class, .jar).
+
+2013-01-28  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added support for retrieving line numbers for exception stack traces.
+
+2013-01-25  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Finished code used for sending JVM environment variables to ABRT tool.
+
+2013-01-21  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Comments enhancements, basic support for sending JVM environment
+	variables to ABRT tool.
+
+2013-01-18  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added three JVM environment variables which needs to be read and sent
+	to ABRT tool.
+
+2012-12-03  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Refactored stack trace generation code into its own print_stack_trace()
+	function. Changed formating of stack trace - now it is similar to
+	Exception.printStackTrace(). Fixed supposed memory leak in this
+	part of code.
+
+2012-12-03  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Updated functions used to print class name and method signature.
+
+2012-11-28  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added function which can format class signature
+	as a printable class name.
+
+2012-11-15  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added support for more JVM environment variables.
+	#define to enable/disable ABRT reporting.
+
+2012-11-13  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Refactoring - get rid of two global variables.
+
+2012-11-12  Jakub Filak  <jfilak@redhat.com>
+
+	* Makefile:
+	Fixed problem with output directory.
+
+2012-11-01  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added support for checking up JVM environment and
+	storing these info to a structure.
+
+2012-11-01  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added function to get UID, minor refactoring.
+
+2012-10-29  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* TODO:
+	Added three items to the TODO list.
+
+2012-10-29  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* src/abrt-checker.c:
+	Added source code of ABRT checker.
+	* src/SimpleTest.java:
+	* src/Test.java:
+	Added source code of two tests.
+	* Makefile:
+	Created project makefile
+	* LICENSE:
+	Changed project name.
+
+2012-10-29  Pavel Tisnovsky  <ptisnovs@redhat.com>
+
+	* ChangeLog:
+	* AUTHORS:
+	* LICENCE:
+	* NEWS:
+	* README:
+	* TODO:
+	Created.
+
