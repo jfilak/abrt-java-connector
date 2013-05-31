@@ -1,6 +1,6 @@
 Name:		abrt-java-connector
 Version:	0.1.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
 Group:		system/utils
@@ -22,7 +22,7 @@ JNI Agent library converting Java exceptions to ABRT problems
 
 
 %build
-%cmake .
+%cmake -DABRT:BOOL=ON .
 make %{?_smp_mflags}
 
 
@@ -36,5 +36,8 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Fri May 30 2013 Jakub Filak <jfilak@redhat.com> - 0.1.0-2
+- Build with ABRT enabled
+
 * Fri May 30 2013 Jakub Filak <jfilak@redhat.com> - 0.1.0-1
 - Initial version
