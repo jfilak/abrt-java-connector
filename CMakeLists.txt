@@ -12,7 +12,7 @@ endif()
 option(ABRT "Enable reporting errors to ABRT" OFF)
 
 if(ABRT)
-    add_definitions(-DREPORT_ERRORS_TO_ABRT)
+    add_definitions(-DREPORT_ERRORS_TO_ABRT=1)
 endif(ABRT)
 
 add_custom_target(

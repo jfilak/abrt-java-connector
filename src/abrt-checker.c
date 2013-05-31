@@ -22,9 +22,6 @@
 #define STRINGIZE_DETAIL(x) #x
 #define STRINGIZE(x) STRINGIZE_DETAIL(x)
 
-/* Can be disabled for "fake run" */
-#define REPORT_ERRORS_TO_ABRT 0
-
 /* ABRT include file */
 #if REPORT_ERRORS_TO_ABRT == 1
 #include <libabrt.h>
