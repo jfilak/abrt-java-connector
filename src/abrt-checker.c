@@ -22,6 +22,8 @@
 #define STRINGIZE_DETAIL(x) #x
 #define STRINGIZE(x) STRINGIZE_DETAIL(x)
 
+#define __UNUSED_VAR __attribute__ ((unused))
+
 /* ABRT include file */
 #if REPORT_ERRORS_TO_ABRT == 1
 #include <libabrt.h>
@@ -33,6 +35,7 @@
 #include <jni.h>
 #include <jvmti.h>
 #include <jvmticmlr.h>
+
 
 
 
@@ -522,7 +525,6 @@ char *get_command(int pid)
     char file_name[32];
     FILE *fin;
     size_t size = 0;
-    int i;
     char *out;
     char buffer[2048];
 
@@ -540,7 +542,7 @@ char *get_command(int pid)
     fclose(fin);
 
     /* parameters are divided by \0, get rid of it */
-    for (i=0; i<size-1; i++)
+    for (size_t i=0; i<size-1; i++)
     {
         if (buffer[i] == 0) buffer[i] = ' ';
     }
@@ -781,7 +783,7 @@ static void JNICALL callback_on_vm_init(
  */
 static void JNICALL callback_on_vm_death(
             jvmtiEnv *jvmti_env,
-            JNIEnv   *env)
+            JNIEnv   *env __UNUSED_VAR)
 {
     enter_critical_section(jvmti_env);
     printf("Got VM Death event\n");
@@ -848,7 +850,7 @@ static int get_line_number(
  * Return path to given class using given class loader.
  */
 static char* get_path_to_class_class_loader(
-            jvmtiEnv *jvmti_env,
+            jvmtiEnv *jvmti_env __UNUSED_VAR,
             JNIEnv   *jni_env,
             jclass    class_loader,
             char     *class_name,
@@ -985,7 +987,7 @@ static void print_one_method_from_stack(
 
     char buf[1000];
     char line_number_buf[20];
-    if (line_number_buf >= 0)
+    if (line_number >= 0)
     {
         sprintf(line_number_buf, "%d", line_number);
     }
@@ -1091,10 +1093,10 @@ static void JNICALL callback_on_exception(
             JNIEnv* jni_env,
             jthread thr,
             jmethodID method,
-            jlocation location,
+            jlocation location __UNUSED_VAR,
             jobject exception_object,
             jmethodID catch_method,
-            jlocation catch_location)
+            jlocation catch_location __UNUSED_VAR)
 {
     jvmtiError error_code;
 
@@ -1190,11 +1192,11 @@ static void JNICALL callback_on_exception(
  */
 static void JNICALL callback_on_exception_catch(
             jvmtiEnv *jvmti_env,
-            JNIEnv   *env,
-            jthread   thr,
+            JNIEnv   *env __UNUSED_VAR,
+            jthread   thr __UNUSED_VAR,
             jmethodID method,
-            jlocation location,
-            jobject   exception)
+            jlocation location __UNUSED_VAR,
+            jobject   exception __UNUSED_VAR)
 {
     jvmtiError error_code;
 
@@ -1248,9 +1250,9 @@ static void JNICALL callback_on_exception_catch(
  */
 static void JNICALL callback_on_object_alloc(
             jvmtiEnv *jvmti_env,
-            JNIEnv* jni_env,
-            jthread thread,
-            jobject object,
+            JNIEnv* jni_env __UNUSED_VAR,
+            jthread thread __UNUSED_VAR,
+            jobject object __UNUSED_VAR,
             jclass object_klass,
             jlong size)
 {
@@ -1274,7 +1276,7 @@ static void JNICALL callback_on_object_alloc(
  */
 static void JNICALL callback_on_object_free(
             jvmtiEnv *jvmti_env,
-            jlong tag)
+            jlong tag __UNUSED_VAR)
 {
     enter_critical_section(jvmti_env);
 #ifdef VERBOSE
@@ -1333,10 +1335,10 @@ static void JNICALL callback_on_compiled_method_load(
             jvmtiEnv   *jvmti_env,
             jmethodID   method,
             jint        code_size,
-            const void *code_addr,
-            jint        map_length,
-            const jvmtiAddrLocationMap* map,
-            const void  *compile_info)
+            const void *code_addr __UNUSED_VAR,
+            jint        map_length __UNUSED_VAR,
+            const jvmtiAddrLocationMap* map __UNUSED_VAR,
+            const void  *compile_info __UNUSED_VAR)
 {
     jvmtiError error_code;
     char* name = NULL;
@@ -1575,7 +1577,10 @@ jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env)
 /*
  * Called when agent is loading into JVM.
  */
-JNIEXPORT jint JNICALL Agent_OnLoad(JavaVM *jvm, char *options, void *reserved)
+JNIEXPORT jint JNICALL Agent_OnLoad(
+        JavaVM *jvm,
+        char *options __UNUSED_VAR,
+        void *reserved __UNUSED_VAR)
 {
     jvmtiEnv  *jvmti_env = NULL;
     jvmtiError error_code = JVMTI_ERROR_NONE;
@@ -1636,7 +1641,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(JavaVM *jvm, char *options, void *reserved)
 /*
  * Called when agent is unloading from JVM.
  */
-JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm)
+JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
 {
     printf("Agent_OnUnLoad\n");
     if (fout != NULL)

@@ -5,7 +5,8 @@ include(FindPkgConfig)
 pkg_check_modules(PC_ABRT REQUIRED abrt)
 include_directories(${PC_ABRT_INCLUDE_DIRS})
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -ansi")
+add_definitions(-D_GNU_SOURCE)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=c99 -pedantic")
 
 set(AbrtChecker_SRCS abrt-checker.c)
 
