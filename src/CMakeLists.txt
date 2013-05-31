@@ -10,6 +10,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -ansi")
 set(AbrtChecker_SRCS abrt-checker.c)
 
 add_library(AbrtChecker SHARED ${AbrtChecker_SRCS})
+set_property(TARGET AbrtChecker PROPERTY OUTPUT_NAME abrt-java-connector)
 target_link_libraries(AbrtChecker ${PC_ABRT_LIBRARIES})
 
 install(TARGETS AbrtChecker DESTINATION ${LIB_INSTALL_DIR})

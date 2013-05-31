@@ -49,37 +49,39 @@ set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
 
 add_custom_target(AllTestClasses DEPENDS ${TEST_JAVA_TARGETS})
 
+get_property(AGENT_NAME TARGET AbrtChecker PROPERTY OUTPUT_NAME)
+
 add_custom_target(
     run
-    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:AbrtChecker=SimpleTest SimpleTest -platform.jvmtiSupported true
+    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=SimpleTest SimpleTest -platform.jvmtiSupported true
     DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_custom_target(
     run_test
-    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:AbrtChecker=Test Test -platform.jvmtiSupported true
+    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=Test Test -platform.jvmtiSupported true
     DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_custom_target(
     run_package
-    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:AbrtChecker=Test com.redhat.abrt.test.Test -platform.jvmtiSupported true
+    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=Test com.redhat.abrt.test.Test -platform.jvmtiSupported true
     DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_custom_target(
     run_jar
-    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:AbrtChecker=Test -cp JarTest.jar SimpleTest -platform.jvmtiSupported true
+    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=Test -cp JarTest.jar SimpleTest -platform.jvmtiSupported true
     DEPENDS AbrtChecker ${JAR_TEST_PATH}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_custom_target(
     run_threads
-    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:AbrtChecker=MultiThreadTest MultiThreadTest -platform.jvmtiSupported true
+    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=MultiThreadTest MultiThreadTest -platform.jvmtiSupported true
     DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -93,7 +95,7 @@ add_custom_command(
 add_custom_target(
     run_remote
     rm -rf SimpleTest.class
-    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:AbrtChecker=RemoteTest RemoteTest ${SERVER_URL}/JarTest.jar -platform.jvmtiSupported true
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=RemoteTest RemoteTest ${SERVER_URL}/JarTest.jar -platform.jvmtiSupported true
     DEPENDS AbrtChecker ${REMOTE_JAR_PATH}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
