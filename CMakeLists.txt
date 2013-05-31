@@ -9,6 +9,12 @@ else()
 set(LIB_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
 
+option(ABRT "Enable reporting errors to ABRT" OFF)
+
+if(ABRT)
+    add_definitions(-DREPORT_ERRORS_TO_ABRT)
+endif(ABRT)
+
 add_custom_target(
     dist
     COMMAND git archive --prefix=${ARCHIVE_NAME}/ HEAD | bzip2 > ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.bz2

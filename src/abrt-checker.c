@@ -22,12 +22,11 @@
 #define STRINGIZE_DETAIL(x) #x
 #define STRINGIZE(x) STRINGIZE_DETAIL(x)
 
-/* Can be disabled for "fake run" */
-#define REPORT_ERRORS_TO_ABRT 0
-
 /* ABRT include file */
-#if REPORT_ERRORS_TO_ABRT == 1
+#ifdef REPORT_ERRORS_TO_ABRT
 #include <libabrt.h>
+#else
+#warning "Building version without errors reporting"
 #endif
 
 /* JVM TI include files */
@@ -178,7 +177,7 @@ static const char * null2empty(const char *str)
 /*
  * Add JVM environment data into ABRT event message.
  */
-#if REPORT_ERRORS_TO_ABRT == 1
+#ifdef REPORT_ERRORS_TO_ABRT
 static void add_jvm_environment_data(problem_data_t *pd)
 {
     problem_data_add_text_editable(pd, "sun_java_command", null2empty(jvmEnvironment.command_and_params));
@@ -206,7 +205,7 @@ static void add_jvm_environment_data(problem_data_t *pd)
 /*
  * Add process properties into ABRT event message.
  */
-#if REPORT_ERRORS_TO_ABRT == 1
+#ifdef REPORT_ERRORS_TO_ABRT
 static void add_process_properties_data(problem_data_t *pd)
 {
     char pidstr[20];
@@ -232,7 +231,7 @@ static void add_process_properties_data(problem_data_t *pd)
  */
 static void register_abrt_event(char * executable, char * message, unsigned char * method, char * backtrace)
 {
-#if REPORT_ERRORS_TO_ABRT == 1
+#ifdef REPORT_ERRORS_TO_ABRT
     char abrt_message[1000];
     char s[11];
     problem_data_t *pd = problem_data_new();
