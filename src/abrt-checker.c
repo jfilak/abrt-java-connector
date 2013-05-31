@@ -22,8 +22,11 @@
 #define STRINGIZE_DETAIL(x) #x
 #define STRINGIZE(x) STRINGIZE_DETAIL(x)
 
+/* Can be disabled for "fake run" */
+#define REPORT_ERRORS_TO_ABRT 0
+
 /* ABRT include file */
-#ifdef REPORT_ERRORS_TO_ABRT
+#if REPORT_ERRORS_TO_ABRT == 1
 #include <libabrt.h>
 #else
 #warning "Building version without errors reporting"
@@ -177,7 +180,7 @@ static const char * null2empty(const char *str)
 /*
  * Add JVM environment data into ABRT event message.
  */
-#ifdef REPORT_ERRORS_TO_ABRT
+#if REPORT_ERRORS_TO_ABRT == 1
 static void add_jvm_environment_data(problem_data_t *pd)
 {
     problem_data_add_text_editable(pd, "sun_java_command", null2empty(jvmEnvironment.command_and_params));
@@ -205,7 +208,7 @@ static void add_jvm_environment_data(problem_data_t *pd)
 /*
  * Add process properties into ABRT event message.
  */
-#ifdef REPORT_ERRORS_TO_ABRT
+#if REPORT_ERRORS_TO_ABRT == 1
 static void add_process_properties_data(problem_data_t *pd)
 {
     char pidstr[20];
@@ -231,7 +234,7 @@ static void add_process_properties_data(problem_data_t *pd)
  */
 static void register_abrt_event(char * executable, char * message, unsigned char * method, char * backtrace)
 {
-#ifdef REPORT_ERRORS_TO_ABRT
+#if REPORT_ERRORS_TO_ABRT == 1
     char abrt_message[1000];
     char s[11];
     problem_data_t *pd = problem_data_new();
@@ -619,9 +622,20 @@ static char *get_main_class(
     replace_dots_by_slashes(class_name);
 
     jclass cls = (*jni_env)->FindClass(jni_env, class_name);
+
+    jthrowable exception;
+    exception = (*jni_env)->ExceptionOccurred(jni_env);
+    if (exception)
+    {
+        (*jni_env)->ExceptionClear(jni_env);
+    }
+
     if (cls == NULL)
     {
-        (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)class_name);
+        if (class_name != NULL)
+        {
+            (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)class_name);
+        }
         return UNKNOWN_CLASS_NAME;
     }
 
