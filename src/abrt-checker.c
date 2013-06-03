@@ -62,8 +62,8 @@
 #define DEFAULT_THREAD_NAME "DefaultThread"
 
 /* Fields which needs to be filled when calling ABRT */
-#define FILENAME_TYPE_VALUE      "java"
-#define FILENAME_ANALYZER_VALUE  "java"
+#define FILENAME_TYPE_VALUE      "Java"
+#define FILENAME_ANALYZER_VALUE  "Java"
 
 /* Name of two methods from URL class */
 #define TO_EXTERNAL_FORM_METHOD_NAME "toExternalForm"
@@ -132,6 +132,7 @@ T_processProperties processProperties;
 
 /* forward headers */
 static char* get_path_to_class(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jclass class, char *class_name, const char *stringize_method_name);
+static void print_jvm_environment_variables_to_file(FILE *out);
 
 
 
@@ -183,23 +184,21 @@ static const char * null2empty(const char *str)
 #if REPORT_ERRORS_TO_ABRT == 1
 static void add_jvm_environment_data(problem_data_t *pd)
 {
-    problem_data_add_text_editable(pd, "sun_java_command", null2empty(jvmEnvironment.command_and_params));
-    problem_data_add_text_editable(pd, "sun_java_launcher", null2empty(jvmEnvironment.launcher));
-    problem_data_add_text_editable(pd, "java_home", null2empty(jvmEnvironment.java_home));
-    problem_data_add_text_editable(pd, "java_class_path", null2empty(jvmEnvironment.class_path));
-    problem_data_add_text_editable(pd, "java_library_path", null2empty(jvmEnvironment.library_path));
-    problem_data_add_text_editable(pd, "sun_boot_class_path", null2empty(jvmEnvironment.boot_class_path));
-    problem_data_add_text_editable(pd, "sun_boot_library_path", null2empty(jvmEnvironment.boot_library_path));
-    problem_data_add_text_editable(pd, "java_ext_dirs", null2empty(jvmEnvironment.ext_dirs));
-    problem_data_add_text_editable(pd, "java_endorsed_dirs", null2empty(jvmEnvironment.endorsed_dirs));
-    problem_data_add_text_editable(pd, "cwd", null2empty(jvmEnvironment.cwd));
-    problem_data_add_text_editable(pd, "java_vm_version", null2empty(jvmEnvironment.java_vm_version));
-    problem_data_add_text_editable(pd, "java_vm_name", null2empty(jvmEnvironment.java_vm_name));
-    problem_data_add_text_editable(pd, "java_vm_info", null2empty(jvmEnvironment.java_vm_info));
-    problem_data_add_text_editable(pd, "java_vm_vendor", null2empty(jvmEnvironment.java_vm_vendor));
-    problem_data_add_text_editable(pd, "java_vm_specification_name", null2empty(jvmEnvironment.java_vm_specification_name));
-    problem_data_add_text_editable(pd, "java_vm_specification_vendor", null2empty(jvmEnvironment.java_vm_specification_vendor));
-    problem_data_add_text_editable(pd, "java_vm_specification_version", null2empty(jvmEnvironment.java_vm_specification_version));
+    char *jvm_env = NULL;
+    size_t sizeloc = 0;
+    FILE *mem = open_memstream(&jvm_env, &sizeloc);
+
+    if (NULL == mem)
+    {
+        perror("Skipping 'jvm_environemt' problem element. open_memstream");
+        return;
+    }
+
+    print_jvm_environment_variables_to_file(mem);
+    fclose(mem);
+
+    problem_data_add_text_editable(pd, "jvm_environemt", jvm_env);
+    free(jvm_env);
 }
 #endif
 
@@ -211,6 +210,12 @@ static void add_jvm_environment_data(problem_data_t *pd)
 #if REPORT_ERRORS_TO_ABRT == 1
 static void add_process_properties_data(problem_data_t *pd)
 {
+    pid_t pid = getpid();
+
+    char *environ = get_environ(pid);
+    problem_data_add_text_editable(pd, FILENAME_ENVIRON, environ ? environ : "");
+    free(environ);
+
     char pidstr[20];
     get_pid_as_string(pidstr);
     problem_data_add_text_editable(pd, FILENAME_PID, pidstr);
@@ -243,9 +248,6 @@ static void register_abrt_event(char * executable, char * message, unsigned char
     problem_data_add_text_editable(pd, FILENAME_TYPE, FILENAME_TYPE_VALUE);
     problem_data_add_text_editable(pd, FILENAME_ANALYZER, FILENAME_ANALYZER_VALUE);
 
-    get_pid_as_string(s);
-    problem_data_add_text_editable(pd, FILENAME_PID, s);
-
     get_uid_as_string(s);
     problem_data_add_text_editable(pd, FILENAME_UID, s);
 
@@ -260,8 +262,6 @@ static void register_abrt_event(char * executable, char * message, unsigned char
     /* end of required fields */
 
     /* add optional fields */
-    problem_data_add_text_editable(pd, "optional_one", (const char*)method);
-    problem_data_add_text_editable(pd, "foo", "bar");
     add_jvm_environment_data(pd);
     add_process_properties_data(pd);
 
@@ -730,23 +730,28 @@ static void print_process_properties(void)
  */
 static void print_jvm_environment_variables(void)
 {
-    printf("%-30s: %s\n", "sun.java.command", jvmEnvironment.command_and_params);
-    printf("%-30s: %s\n", "sun.java.launcher", jvmEnvironment.launcher);
-    printf("%-30s: %s\n", "java.home", jvmEnvironment.java_home);
-    printf("%-30s: %s\n", "java.class.path", jvmEnvironment.class_path);
-    printf("%-30s: %s\n", "java.library.path", jvmEnvironment.library_path);
-    printf("%-30s: %s\n", "sun.boot.class.path", jvmEnvironment.boot_class_path);
-    printf("%-30s: %s\n", "sun.boot.library.path", jvmEnvironment.boot_library_path);
-    printf("%-30s: %s\n", "java.ext.dirs", jvmEnvironment.ext_dirs);
-    printf("%-30s: %s\n", "java.endorsed.dirs", jvmEnvironment.endorsed_dirs);
-    printf("%-30s: %s\n", "cwd", jvmEnvironment.cwd);
-    printf("%-30s: %s\n", "java.vm.version", jvmEnvironment.java_vm_version);
-    printf("%-30s: %s\n", "java.vm.name", jvmEnvironment.java_vm_name);
-    printf("%-30s: %s\n", "java.vm.info", jvmEnvironment.java_vm_info);
-    printf("%-30s: %s\n", "java.vm.vendor", jvmEnvironment.java_vm_vendor);
-    printf("%-30s: %s\n", "java.vm.specification_name", jvmEnvironment.java_vm_specification_name);
-    printf("%-30s: %s\n", "java.vm.specification.vendor", jvmEnvironment.java_vm_specification_vendor);
-    printf("%-30s: %s\n", "java.vm.specification.version", jvmEnvironment.java_vm_specification_version);
+    print_jvm_environment_variables_to_file(stdout);
+}
+
+static void print_jvm_environment_variables_to_file(FILE *out)
+{
+    fprintf(out, "%-30s: %s\n", "sun.java.command", null2empty(jvmEnvironment.command_and_params));
+    fprintf(out, "%-30s: %s\n", "sun.java.launcher", null2empty(jvmEnvironment.launcher));
+    fprintf(out, "%-30s: %s\n", "java.home", null2empty(jvmEnvironment.java_home));
+    fprintf(out, "%-30s: %s\n", "java.class.path", null2empty(jvmEnvironment.class_path));
+    fprintf(out, "%-30s: %s\n", "java.library.path", null2empty(jvmEnvironment.library_path));
+    fprintf(out, "%-30s: %s\n", "sun.boot.class.path", null2empty(jvmEnvironment.boot_class_path));
+    fprintf(out, "%-30s: %s\n", "sun.boot.library.path", null2empty(jvmEnvironment.boot_library_path));
+    fprintf(out, "%-30s: %s\n", "java.ext.dirs", null2empty(jvmEnvironment.ext_dirs));
+    fprintf(out, "%-30s: %s\n", "java.endorsed.dirs", null2empty(jvmEnvironment.endorsed_dirs));
+    fprintf(out, "%-30s: %s\n", "cwd", null2empty(jvmEnvironment.cwd));
+    fprintf(out, "%-30s: %s\n", "java.vm.version", null2empty(jvmEnvironment.java_vm_version));
+    fprintf(out, "%-30s: %s\n", "java.vm.name", null2empty(jvmEnvironment.java_vm_name));
+    fprintf(out, "%-30s: %s\n", "java.vm.info", null2empty(jvmEnvironment.java_vm_info));
+    fprintf(out, "%-30s: %s\n", "java.vm.vendor", null2empty(jvmEnvironment.java_vm_vendor));
+    fprintf(out, "%-30s: %s\n", "java.vm.specification_name", null2empty(jvmEnvironment.java_vm_specification_name));
+    fprintf(out, "%-30s: %s\n", "java.vm.specification.vendor", null2empty(jvmEnvironment.java_vm_specification_vendor));
+    fprintf(out, "%-30s: %s\n", "java.vm.specification.version", null2empty(jvmEnvironment.java_vm_specification_version));
 }
 
 
