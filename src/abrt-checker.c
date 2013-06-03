@@ -26,7 +26,7 @@
 
 /* ABRT include file */
 #if REPORT_ERRORS_TO_ABRT == 1
-#include <libabrt.h>
+#include "internal_libabrt.h"
 #else
 #warning "Building version without errors reporting"
 #endif

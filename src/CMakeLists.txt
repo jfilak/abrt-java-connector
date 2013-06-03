@@ -2,7 +2,7 @@ find_package(JNI REQUIRED)
 include_directories(${JAVA_INCLUDE_PATH} ${JAVA_INCLUDE_PATH2})
 
 include(FindPkgConfig)
-pkg_check_modules(PC_ABRT REQUIRED abrt)
+pkg_check_modules(PC_ABRT REQUIRED libreport)
 include_directories(${PC_ABRT_INCLUDE_DIRS})
 
 add_definitions(-D_GNU_SOURCE)
