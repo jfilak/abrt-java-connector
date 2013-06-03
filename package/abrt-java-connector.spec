@@ -9,18 +9,16 @@ Summary:	JNI Agent library converting Java exceptions to ABRT problems
 Group:		System Environment/Libraries
 License:	GPLv2+
 URL:		https://github.com/jfilak/abrt-java-connector
-
-Source0:	https://github.com/jfilak/%{name}/archive/%{commit}/%{name}-%{version}-%{shortcommit}.tar.bz2
+Source0:	https://github.com/jfilak/%{name}/archive/%{commit}/%{name}-%{version}-%{shortcommit}.tar.gz
 
 BuildRequires:	cmake
 BuildRequires:	abrt-devel
 BuildRequires:	java-1.7.0-openjdk-devel
 
-Requires:	libreport-filesystem
 Requires:	abrt
 
 %description
-JNI library providing an agent capable to process both caugh and uncaugh
+JNI library providing an agent capable to process both caught and uncaught
 exceptions and transform them to ABRT problems
 
 
@@ -29,12 +27,15 @@ exceptions and transform them to ABRT problems
 
 
 %build
-%cmake -DABRT:BOOL=ON .
+%cmake -DCMAKE_BUILD_TYPE=Release -DABRT:BOOL=ON .
 make %{?_smp_mflags}
 
 
 %install
 make install DESTDIR=%{buildroot}
+
+# Remove .so which should be placed in devel package
+rm -rf %{buildroot}/%{_libdir}/lib%{name}.so
 
 
 %files
@@ -42,7 +43,14 @@ make install DESTDIR=%{buildroot}
 %config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_format_java.conf
 %config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_formatdup_java.conf
 %config(noreplace) %{_sysconfdir}/libreport/events.d/java_event.conf
-%{_libdir}/lib%{name}.so
+%{_libdir}/lib%{name}.so*
+
+
+%post -p /sbin/ldconfig
+
+
+%postun -p /sbin/ldconfig
+
 
 
 %changelog
