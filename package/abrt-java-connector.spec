@@ -1,9 +1,9 @@
-%global commit 49eb1871274dbe8de78b426be4f77aa92720863d
+%global commit 9deecfb76000710fcea6ef292f0b5e76fde5075f
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 Name:		abrt-java-connector
-Version:	0.1.1
-Release:	2%{?dist}
+Version:	0.1.2
+Release:	1%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
 Group:		System Environment/Libraries
@@ -12,7 +12,7 @@ URL:		https://github.com/jfilak/abrt-java-connector
 Source0:	https://github.com/jfilak/%{name}/archive/%{commit}/%{name}-%{version}-%{shortcommit}.tar.gz
 
 BuildRequires:	cmake
-BuildRequires:	abrt-devel
+BuildRequires:	libreport-devel
 BuildRequires:	java-1.7.0-openjdk-devel
 
 Requires:	abrt
@@ -54,6 +54,10 @@ rm -rf %{buildroot}/%{_libdir}/lib%{name}.so
 
 
 %changelog
+* Mon Jun 03 2013 Jakub Filak <jfilak@redhat.com> - 0.1.2-1
+- Start versioning library
+- Drop build dependency on abrt-devel
+
 * Mon Jun 03 2013 Jakub Filak <jfilak@redhat.com> - 0.1.1-2
 - Provide ABRT configuration
 
