@@ -190,14 +190,14 @@ static void add_jvm_environment_data(problem_data_t *pd)
 
     if (NULL == mem)
     {
-        perror("Skipping 'jvm_environemt' problem element. open_memstream");
+        perror("Skipping 'jvm_environment' problem element. open_memstream");
         return;
     }
 
     print_jvm_environment_variables_to_file(mem);
     fclose(mem);
 
-    problem_data_add_text_editable(pd, "jvm_environemt", jvm_env);
+    problem_data_add_text_editable(pd, "jvm_environment", jvm_env);
     free(jvm_env);
 }
 #endif
@@ -1084,7 +1084,7 @@ static void print_stack_trace(
     fprintf(fout, "Stack Trace Depth: %d\n", count); 
     fprintf(fout, "%s\n", stack_trace_str);
 
-    register_abrt_event(processProperties.main_class, "Uncatched exception", (unsigned char *)original_method_name, stack_trace_str);
+    register_abrt_event(processProperties.main_class, "Uncaught exception", (unsigned char *)original_method_name, stack_trace_str);
     free(stack_trace_str);
 }
 
@@ -1125,13 +1125,13 @@ static void JNICALL callback_on_exception(
 
     if (catch_method == NULL)
     {
-        fprintf(fout, "Uncatched exception in thread \"%s\" ", tname);
-        printf("Uncatched exception in thread \"%s\" ", tname);
+        fprintf(fout, "Uncaught exception in thread \"%s\" ", tname);
+        printf("Uncaught exception in thread \"%s\" ", tname);
     }
     else
     {
-        fprintf(fout, "Catched exception in thread \"%s\" ", tname);
-        printf("Catched exception in thread \"%s\" ", tname);
+        fprintf(fout, "Caught exception in thread \"%s\" ", tname);
+        printf("Caught exception in thread \"%s\" ", tname);
     }
 
     /* retrieve all required informations */
@@ -1159,7 +1159,7 @@ static void JNICALL callback_on_exception(
         /* special cases for selected exceptions */
         if (strcmp("Ljava/io/FileNotFoundException;", exception_signature)==0)
         {
-            register_abrt_event(processProperties.main_class, "Catched exception: file not found", (unsigned char *)method_name_ptr, "");
+            register_abrt_event(processProperties.main_class, "Caught exception: file not found", (unsigned char *)method_name_ptr, "");
         }
         fprintf(fout, "exception object is: %s\n", exception_signature);
         (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)exception_signature);
