@@ -38,7 +38,10 @@ RPM_DIRS = --define "_sourcedir `pwd`/$(OUT_DIR)" \
 
 .PHONY: rpm
 rpm: dist
-	rpmbuild $(RPM_DIRS) -ba $(PKG_DIR)/abrt-java-connector.spec
+	sed -e 's/global commit .*$$/global commit '"$$(git log -1 --format=%H)"'/' \
+		-e 's/%{?dist}/.'"$$(git log -1 --format=%h)%{?dist}"'/' \
+		$(PKG_DIR)/abrt-java-connector.spec > $(OUT_DIR)/abrt-java-connector.spec && \
+	rpmbuild $(RPM_DIRS) -ba $(OUT_DIR)/abrt-java-connector.spec
 
 # Make sure the output dir is created
 $(OUT_DIR):
