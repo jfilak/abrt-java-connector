@@ -33,6 +33,11 @@ if(NOT LIB_INSTALL_DIR)
     set(LIB_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
 
+if(NOT SYSCONF_INSTALL_DIR)
+    set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc)
+endif()
+
+
 option(ABRT "Enable reporting errors to ABRT" OFF)
 
 if(ABRT)
@@ -45,4 +50,4 @@ add_custom_target(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
-subdirs(src test)
+subdirs(src etc test)
