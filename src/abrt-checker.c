@@ -614,7 +614,7 @@ static char *get_main_class(
     }
 
     /* strip the second part of sun.java.command property */
-    char *space = strchr(class_name, ' ');
+    char *space = strchrnul(class_name, ' ');
     *space = 0;
 
     /* replace all '.' to '/' */
