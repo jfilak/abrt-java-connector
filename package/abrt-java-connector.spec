@@ -3,7 +3,7 @@
 
 Name:		abrt-java-connector
 Version:	0.1.1
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
 Group:		System Environment/Libraries
@@ -15,6 +15,8 @@ Source0:	https://github.com/jfilak/%{name}/archive/%{commit}/%{name}-%{version}-
 BuildRequires:	cmake
 BuildRequires:	abrt-devel
 BuildRequires:	java-1.7.0-openjdk-devel
+
+Requires:	libreport-filesystem
 Requires:	abrt
 
 %description
@@ -37,10 +39,16 @@ make install DESTDIR=%{buildroot}
 
 %files
 %doc LICENSE README AUTHORS
+%config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_format_java.conf
+%config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_formatdup_java.conf
+%config(noreplace) %{_sysconfdir}/libreport/events.d/java_event.conf
 %{_libdir}/lib%{name}.so
 
 
 %changelog
+* Mon Jun 03 2013 Jakub Filak <jfilak@redhat.com> - 0.1.1-2
+- Provide ABRT configuration
+
 * Mon Jun 03 2013 Jakub Filak <jfilak@redhat.com> - 0.1.1-1
 - New release
 
