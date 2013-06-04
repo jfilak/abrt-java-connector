@@ -113,7 +113,7 @@ add_custom_target(
 add_custom_target(
     run_missing_class_test
     rm -f MissingClass.class
-    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=Test MissingClassTest -platform.jvmtiSupported true
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=Test MissingClassTest -platform.jvmtiSupported true
     DEPENDS AbrtChecker ${JAR_TEST_PATH}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
