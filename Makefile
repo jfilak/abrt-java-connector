@@ -49,4 +49,8 @@ $(OUT_DIR):
 
 .PHONY: clean
 clean:
+	cd $(OUT_DIR) && make clean
+
+.PHONY: distclean
+distclean:
 	rm -rf $(OUT_DIR)
