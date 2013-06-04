@@ -43,6 +43,9 @@ _add_class_target(RemoteTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(MultiThreadTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(Test TEST_JAVA_TARGETS)
 _add_class_target(com/redhat/abrt/test/Test TEST_JAVA_TARGETS)
+_add_class_target(BadClassTest TEST_JAVA_TARGETS)
+_add_class_target(MissingClass TEST_JAVA_TARGETS)
+_add_class_target(MissingClassTest TEST_JAVA_TARGETS MissingClass)
 
 _add_jar_target(JarTest JAR_TEST_PATH SimpleTest)
 set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
@@ -99,3 +102,19 @@ add_custom_target(
     DEPENDS AbrtChecker ${REMOTE_JAR_PATH}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+
+add_custom_target(
+    run_bad_class
+    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=Test BadClassTest -platform.jvmtiSupported true
+    DEPENDS AbrtChecker ${JAR_TEST_PATH}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+add_custom_target(
+    run_missing_class_test
+    rm -f MissingClass.class
+    LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=Test MissingClassTest -platform.jvmtiSupported true
+    DEPENDS AbrtChecker ${JAR_TEST_PATH}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
