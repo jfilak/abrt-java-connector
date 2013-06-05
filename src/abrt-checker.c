@@ -881,7 +881,13 @@ static char* get_path_to_class_class_loader(
 {
     jclass class_loader_class = NULL;
 
-    char *upd_class_name = (char*)malloc(strlen(class_name)+7);
+    char *upd_class_name = (char*)malloc(strlen(class_name) + sizeof("class") + 1);
+    if (upd_class_name == NULL)
+    {
+        fprintf(stderr, "malloc(): out of memory");
+        return NULL;
+    }
+
     strcpy(upd_class_name, class_name);
     strcat(upd_class_name, "class");
 
@@ -889,7 +895,7 @@ static char* get_path_to_class_class_loader(
     class_loader_class = (*jni_env)->FindClass(jni_env, "java/lang/ClassLoader");
     if (class_loader_class ==  NULL)
     {
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
+        free(upd_class_name);
         return NULL;
     }
 
@@ -897,12 +903,14 @@ static char* get_path_to_class_class_loader(
     jmethodID get_resource = (*jni_env)->GetMethodID(jni_env, class_loader_class, "getResource", "(Ljava/lang/String;)Ljava/net/URL;" );
     if (get_resource ==  NULL)
     {
+        free(upd_class_name);
         (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
         return NULL;
     }
 
     /* convert new class name into a Java String */
     jstring j_class_name = (*jni_env)->NewStringUTF(jni_env, upd_class_name);
+    free(upd_class_name);
 
     /* call method ClassLoader.getResource(className) */
     jobject url = (*jni_env)->CallObjectMethod(jni_env, class_loader, get_resource, j_class_name);
@@ -934,8 +942,11 @@ static char* get_path_to_class_class_loader(
 
     /* convert Java String into C char* */
     char *str = (char*)(*jni_env)->GetStringUTFChars(jni_env, jstr, NULL);
-    char *out = (char*)calloc(strlen(str)+1, sizeof(char));
-    strcpy(out, str);
+    char *out = strdup(str);
+    if (out == NULL)
+    {
+        fprintf(stderr, "strdup(): out of memory");
+    }
 
     /* cleanup */
     (*jni_env)->ReleaseStringUTFChars(jni_env, jstr, str);
@@ -1071,6 +1082,11 @@ static void print_stack_trace(
 
     /* allocate string which will contain stack trace */
     stack_trace_str = (char*)calloc(MAX_STACK_TRACE_STRING_LENGTH + 1, sizeof(char));
+    if (stack_trace_str == NULL)
+    {
+        fprintf(stderr, "calloc(): out of memory");
+        return;
+    }
 
     /* get stack trace */
     error_code = (*jvmti_env)->GetStackTrace(jvmti_env, thread, 0, MAX_STACK_TRACE_DEPTH, stack_frames, &count);
@@ -1083,6 +1099,7 @@ static void print_stack_trace(
     /* is stack trace empty? */
     if (count < 1)
     {
+        free(stack_trace_str);
         return;
     }
 
