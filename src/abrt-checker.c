@@ -1039,12 +1039,15 @@ static void print_stack_trace(
             jvmtiEnv *jvmti_env,
             JNIEnv   *jni_env,
             jthread   thread,
-            char     *original_method_name)
+            char     *original_method_name,
+            char     *thread_name,
+            char     *exception_class_name)
 {
     jvmtiError     error_code;
     jvmtiFrameInfo stack_frames[MAX_STACK_TRACE_DEPTH];
 
     char  *stack_trace_str;
+    char  buf[1000];
     int count;
     int i;
 
@@ -1070,6 +1073,9 @@ static void print_stack_trace(
     printf("=====================\n");
     printf("Stack Trace Depth: %d\n", count); 
 #endif
+
+    sprintf(buf, "Uncatched exception in thread \"%s\" %s\n", thread_name, exception_class_name);
+    strncat(stack_trace_str, buf, MAX_STACK_TRACE_STRING_LENGTH - strlen(stack_trace_str) - 1);
 
     /* print content of stack frames */
     for (i = 0; i < count; i++) {
@@ -1149,7 +1155,7 @@ static void JNICALL callback_on_exception(
 
     if (catch_method == NULL)
     {
-        print_stack_trace(jvmti_env, jni_env, thr, method_name_ptr);
+        print_stack_trace(jvmti_env, jni_env, thr, method_name_ptr, tname, updated_exception_name_ptr);
     }
     else
     {
