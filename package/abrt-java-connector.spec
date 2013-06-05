@@ -1,4 +1,4 @@
-%global commit 9deecfb76000710fcea6ef292f0b5e76fde5075f
+%global commit 9a93f3ef2b4014dab4f1c6ba324bace5d1b3f0f0
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 Name:		abrt-java-connector
@@ -23,7 +23,7 @@ exceptions and transform them to ABRT problems
 
 
 %prep
-%setup -qn %{name}-%{version}-%{shortcommit}
+%setup -qn %{name}-%{commit}
 
 
 %build
