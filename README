@@ -1,2 +1,19 @@
 README
 ------
+
+It needs to be compiled as a shared native library (.so) and then loaded into
+JVM using -agentlib command line parameter.
+
+
+Examples
+--------
+
+Before you can run the example, you need to make sure that
+libabrt-java-connector.so is placed somewhere in the ld searched directories
+or configure LD_LIBRARY_PATH environment variable to point to a directory
+containing the library.
+
+$MyClass is a placeholder for your Java class.
+
+
+$  java -agentlib:abrt-java-connector $MyClass -platform.jvmtiSupported true
