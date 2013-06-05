@@ -9,7 +9,7 @@ execute_process(
     COMMAND git log -1 --format=%h
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     RESULT_VARIABLE git_result
-    OUTPUT_VARIABLE git_commit
+    OUTPUT_VARIABLE git_short_commit
     ERROR_QUIET)
 
 if(git_result EQUAL 0)
@@ -21,10 +21,17 @@ if(git_result EQUAL 0)
         ERROR_QUIET)
 
     if(git_result EQUAL 0)
-        string(REGEX REPLACE "(\r?\n)+$" "" git_commit "${git_commit}")
+        string(REGEX REPLACE "(\r?\n)+$" "" git_short_commit "${git_short_commit}")
         string(REGEX REPLACE "(\r?\n)+$" "" git_tag "${git_tag}")
-        set(PROJECT_VERSION ${git_tag}-${git_commit})
+        set(PROJECT_VERSION ${git_tag}-${git_short_commit})
     endif()
+
+    execute_process(
+        COMMAND git log -1 --format=%H
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        RESULT_VARIABLE git_result
+        OUTPUT_VARIABLE git_commit)
+    string(REGEX REPLACE "(\r?\n)+$" "" git_commit "${git_commit}")
 endif()
 
 set(ARCHIVE_NAME ${CMAKE_PROJECT_NAME}-${PROJECT_VERSION})
@@ -46,7 +53,7 @@ endif(ABRT)
 
 add_custom_target(
     dist
-    COMMAND git archive --prefix=${ARCHIVE_NAME}/ HEAD | gzip > ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz
+    COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${git_commit}/ HEAD | gzip > ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
