@@ -27,7 +27,7 @@ exceptions and transform them to ABRT problems
 
 
 %build
-%cmake -DCMAKE_BUILD_TYPE=Release -DABRT:BOOL=ON .
+%cmake -DCMAKE_BUILD_TYPE=Release
 make %{?_smp_mflags}
 
 

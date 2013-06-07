@@ -44,13 +44,6 @@ if(NOT SYSCONF_INSTALL_DIR)
     set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc)
 endif()
 
-
-option(ABRT "Enable reporting errors to ABRT" OFF)
-
-if(ABRT)
-    add_definitions(-DREPORT_ERRORS_TO_ABRT=1)
-endif(ABRT)
-
 add_custom_target(
     dist
     COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${git_commit}/ HEAD | gzip > ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz

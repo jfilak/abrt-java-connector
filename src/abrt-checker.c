@@ -43,11 +43,7 @@
 #define __UNUSED_VAR __attribute__ ((unused))
 
 /* ABRT include file */
-#if REPORT_ERRORS_TO_ABRT == 1
 #include "internal_libabrt.h"
-#else
-#warning "Building version without errors reporting"
-#endif
 
 /* JVM TI include files */
 #include <jni.h>
@@ -58,7 +54,6 @@
 
 
 /* Basic settings */
-#undef VERBOSE
 #define VM_MEMORY_ALLOCATION_THRESHOLD 1024
 #define GC_TIME_THRESHOLD 1
 
@@ -131,6 +126,15 @@ typedef struct {
 
 
 
+/*
+ * Flags for specification of destination for error reports
+ */
+typedef enum {
+    ED_TERMINAL = 1,                ///< Report errors to the terminal
+    ED_ABRT     = ED_TERMINAL << 1, ///< Submit error reports to ABRT
+} T_errorDestination;
+
+
 /* Global monitor lock */
 jrawMonitorID lock;
 
@@ -146,6 +150,8 @@ T_jvmEnvironment jvmEnvironment;
 /* Structure containing process properties. */
 T_processProperties processProperties;
 
+/* Global configuration of report destination */
+T_errorDestination reportErrosTo;
 
 
 /* forward headers */
@@ -199,7 +205,6 @@ static const char * null2empty(const char *str)
 /*
  * Add JVM environment data into ABRT event message.
  */
-#if REPORT_ERRORS_TO_ABRT == 1
 static void add_jvm_environment_data(problem_data_t *pd)
 {
     char *jvm_env = NULL;
@@ -218,14 +223,12 @@ static void add_jvm_environment_data(problem_data_t *pd)
     problem_data_add_text_editable(pd, "jvm_environment", jvm_env);
     free(jvm_env);
 }
-#endif
 
 
 
 /*
  * Add process properties into ABRT event message.
  */
-#if REPORT_ERRORS_TO_ABRT == 1
 static void add_process_properties_data(problem_data_t *pd)
 {
     pid_t pid = getpid();
@@ -247,17 +250,23 @@ static void add_process_properties_data(problem_data_t *pd)
         problem_data_add_text_editable(pd, "java_executable", null2empty(processProperties.executable));
     }
 }
-#endif
 
 
 
 /*
  * Register new ABRT event using given message and a method name.
- * If REPORT_ERRORS_TO_ABRT is set to zero, this function does nothing.
+ * If reportErrosTo global flags doesn't contain ED_ABRT, this function does nothing.
  */
 static void register_abrt_event(char * executable, char * message, unsigned char * method, char * backtrace)
 {
-#if REPORT_ERRORS_TO_ABRT == 1
+    if ((reportErrosTo & ED_ABRT) == 0)
+    {
+#ifdef VERBOSE
+        printf("ABRT reporting is disabled\n");
+#endif
+        return;
+    }
+
     char abrt_message[1000];
     char s[11];
     problem_data_t *pd = problem_data_new();
@@ -287,7 +296,6 @@ static void register_abrt_event(char * executable, char * message, unsigned char
     int res = problem_data_send_to_abrt(pd);
     printf("problem data created: '%s'\n", res ? "failure" : "success");
     problem_data_free(pd);
-#endif
 }
 
 
@@ -1054,7 +1062,7 @@ static void print_one_method_from_stack(
     }
     else
     {
-        printf("\tat %s%s(%s:Unknown location)\n", updated_class_name, source_file_name, method_name_ptr);
+        printf("\tat %s%s(%s:Unknown location)\n", updated_class_name, method_name, source_file_name);
     }
 #endif
 
@@ -1633,11 +1641,62 @@ jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env)
 
 
 /*
+ * Parses options passed from the command line and save results in global variables.
+ * The function expects string in the following format:
+ *  [key[=value][,key[=value]]...]
+ *
+ *  - separator is ','
+ *  - keys without values are allowed
+ *  - empty keys are allowed
+ *  - multiple occurrences of a single key are allowed
+ *  - empty values are allowed
+ */
+void parse_commandline_options(char *options)
+{
+    char *savedptr_key = NULL;
+    for (char *key = options; /*break inside*/; options=NULL)
+    {
+        key = strtok_r(options, ",", &savedptr_key);
+        if (key == NULL)
+        {
+            break;
+        }
+
+        char *value = strchr(key, '=');
+        if (value != NULL)
+        {
+            value[0] = '\0';
+            value += 1;
+        }
+
+#ifdef VERBOSE
+        printf("Parsed option '%s' = '%s'\n", key, value ? value : "(None)");
+#endif
+        if (strcmp("abrt", key) == 0)
+        {
+            if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
+            {
+#ifdef VERBOSE
+                puts("Enabling errors reporting to ABRT");
+#endif
+                reportErrosTo |= ED_ABRT;
+            }
+        }
+        else
+        {
+            fprintf(stderr, "Unknow option '%s'\n", key);
+        }
+    }
+}
+
+
+
+/*
  * Called when agent is loading into JVM.
  */
 JNIEXPORT jint JNICALL Agent_OnLoad(
         JavaVM *jvm,
-        char *options __UNUSED_VAR,
+        char *options,
         void *reserved __UNUSED_VAR)
 {
     jvmtiEnv  *jvmti_env = NULL;
@@ -1645,6 +1704,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     jint       result;
 
     printf("Agent_OnLoad\n");
+    parse_commandline_options(options);
 
     /* check if JVM TI version is correct */
     result = (*jvm)->GetEnv(jvm, (void **) &jvmti_env, JVMTI_VERSION_1_0);

@@ -15,5 +15,16 @@ containing the library.
 
 $MyClass is a placeholder for your Java class.
 
+Example1:
+- this example prints the detected errors to the terminal only
+- reporting to ABRT is disabled by default
 
 $  java -agentlib:abrt-java-connector $MyClass -platform.jvmtiSupported true
+
+
+Example2:
+- this example shows how to enable reporting errors to ABRT
+- ABRT gets enabled by passing option 'abrt' with value 'on'
+- options sent to the agent are specified right behind it's name
+
+$  java -agentlib:abrt-java-connector=abrt=on $MyClass -platform.jvmtiSupported true
