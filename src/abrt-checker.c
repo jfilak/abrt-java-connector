@@ -512,6 +512,7 @@ char *get_executable(int pid)
     char *executable = malloc_readlink(buf);
     if (!executable)
     {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": can't read executable name from /proc/${PID}/exe");
         return NULL;
     }
 
@@ -587,6 +588,11 @@ static void replace_dots_by_slashes(char *class_name)
 static char * create_updated_class_name(char *class_name)
 {
     char *upd_class_name = (char*)malloc(strlen(class_name)+1);
+    if (upd_class_name == NULL)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": malloc(): out of memory");
+        return NULL;
+    }
     strcpy(upd_class_name, class_name);
     strcat(upd_class_name, ".");
     return upd_class_name;
@@ -660,6 +666,12 @@ static char *get_main_class(
     char *upd_class_name = create_updated_class_name(class_name);
 
     (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)class_name);
+
+    if (upd_class_name == NULL)
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, cls);
+        return NULL;
+    }
 
     char *path_to_class = get_path_to_class(jvmti_env, jni_env, cls, upd_class_name, GET_PATH_METHOD_NAME);
 
@@ -884,7 +896,7 @@ static char* get_path_to_class_class_loader(
     char *upd_class_name = (char*)malloc(strlen(class_name) + sizeof("class") + 1);
     if (upd_class_name == NULL)
     {
-        fprintf(stderr, "malloc(): out of memory");
+        fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": malloc(): out of memory");
         return NULL;
     }
 
