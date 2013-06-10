@@ -42,6 +42,13 @@
 
 #define __UNUSED_VAR __attribute__ ((unused))
 
+#ifdef VERBOSE
+# define VERBOSE_PRINT(...) do { fprintf(stdout, __VA_ARGS__); } while(0)
+#else
+# define VERBOSE_PRINT(...) do { } while (0)
+#endif
+
+
 /* ABRT include file */
 #include "internal_libabrt.h"
 
@@ -261,9 +268,7 @@ static void register_abrt_event(char * executable, char * message, unsigned char
 {
     if ((reportErrosTo & ED_ABRT) == 0)
     {
-#ifdef VERBOSE
-        printf("ABRT reporting is disabled\n");
-#endif
+        VERBOSE_PRINT("ABRT reporting is disabled\n");
         return;
     }
 
@@ -1112,9 +1117,7 @@ static void print_stack_trace(
     error_code = (*jvmti_env)->GetStackTrace(jvmti_env, thread, 0, MAX_STACK_TRACE_DEPTH, stack_frames, &count);
     check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
 
-#ifdef VERBOSE
-	    printf("Number of records filled: %d\n", count);
-#endif
+    VERBOSE_PRINT("Number of records filled: %d\n", count);
 
     /* is stack trace empty? */
     if (count < 1)
@@ -1122,12 +1125,6 @@ static void print_stack_trace(
         free(stack_trace_str);
         return;
     }
-
-#ifdef VERBOSE
-    printf("Exception Stack Trace\n");
-    printf("=====================\n");
-    printf("Stack Trace Depth: %d\n", count); 
-#endif
 
     sprintf(buf, "Uncatched exception in thread \"%s\" %s\n", thread_name, exception_class_name);
     strncat(stack_trace_str, buf, MAX_STACK_TRACE_STRING_LENGTH - strlen(stack_trace_str) - 1);
@@ -1138,7 +1135,11 @@ static void print_stack_trace(
         print_one_method_from_stack(jvmti_env, jni_env, stack_frame, stack_trace_str);
     }
 
-    puts(stack_trace_str);
+    VERBOSE_PRINT(
+    "Exception Stack Trace\n"
+    "=====================\n"
+    "Stack Trace Depth: %d\n"
+    "%s\n", count, stack_trace_str);
 
     fprintf(fout, "Exception Stack Trace\n");
     fprintf(fout, "=====================\n");
@@ -1284,9 +1285,7 @@ static void JNICALL callback_on_exception_catch(
     /* readable class name */
     class_name_ptr = format_class_name(class_signature_ptr, '.');
 
-#ifdef VERBOSE
-    printf("An exception was caught in a method %s with signature %s\n", method_name_ptr, method_signature_ptr);
-#endif
+    VERBOSE_PRINT("An exception was caught in a method %s with signature %s\n", method_name_ptr, method_signature_ptr);
     fprintf(fout,"An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr); 
 
     /* cleapup */
@@ -1345,9 +1344,7 @@ static void JNICALL callback_on_object_free(
             jlong tag __UNUSED_VAR)
 {
     enter_critical_section(jvmti_env);
-#ifdef VERBOSE
-    printf("object free\n");
-#endif
+    VERBOSE_PRINT("object free\n");
     exit_critical_section(jvmti_env);
 }
 
@@ -1361,9 +1358,7 @@ static void JNICALL callback_on_gc_start(
 {
     enter_critical_section(jvmti_env);
     gc_start_time = clock();
-#ifdef VERBOSE
-    printf("GC start\n");
-#endif
+    VERBOSE_PRINT("GC start\n");
     exit_critical_section(jvmti_env);
 }
 
@@ -1378,9 +1373,7 @@ static void JNICALL callback_on_gc_finish(
     clock_t gc_end_time = clock();
     int diff;
     enter_critical_section(jvmti_env);
-#ifdef VERBOSE
-    printf("GC end\n");
-#endif
+    VERBOSE_PRINT("GC end\n");
     diff = (gc_end_time - (gc_start_time))/CLOCKS_PER_SEC;
     if (diff > GC_TIME_THRESHOLD)
     {
@@ -1669,16 +1662,12 @@ void parse_commandline_options(char *options)
             value += 1;
         }
 
-#ifdef VERBOSE
-        printf("Parsed option '%s' = '%s'\n", key, value ? value : "(None)");
-#endif
+        VERBOSE_PRINT("Parsed option '%s' = '%s'\n", key, (value ? value : "(None)"));
         if (strcmp("abrt", key) == 0)
         {
             if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
             {
-#ifdef VERBOSE
-                puts("Enabling errors reporting to ABRT");
-#endif
+                VERBOSE_PRINT("Enabling errors reporting to ABRT\n");
                 reportErrosTo |= ED_ABRT;
             }
         }
