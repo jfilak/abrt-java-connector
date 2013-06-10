@@ -42,6 +42,13 @@
 
 #define __UNUSED_VAR __attribute__ ((unused))
 
+#ifdef VERBOSE
+# define VERBOSE_PRINT(...) do { fprintf(stdout, __VA_ARGS__); } while(0)
+#else
+# define VERBOSE_PRINT(...) do { } while (0)
+#endif
+
+
 /* ABRT include file */
 #include "internal_libabrt.h"
 
@@ -84,6 +91,9 @@
 
 /* Default main class name */
 #define UNKNOWN_CLASS_NAME "*unknown*"
+
+/* A pointer determining that log output is disabled */
+#define DISABLED_LOG_OUTPUT ((void *)-1)
 
 
 
@@ -152,6 +162,14 @@ T_processProperties processProperties;
 
 /* Global configuration of report destination */
 T_errorDestination reportErrosTo;
+
+/* Path (not necessary absolute) to output file */
+char *outputFileName;
+
+
+/* Define a helper macro*/
+# define log_print(...) do { if(outputFileName != DISABLED_LOG_OUTPUT) fprintf(fout, __VA_ARGS__); } while(0)
+
 
 
 /* forward headers */
@@ -261,9 +279,7 @@ static void register_abrt_event(char * executable, char * message, unsigned char
 {
     if ((reportErrosTo & ED_ABRT) == 0)
     {
-#ifdef VERBOSE
-        printf("ABRT reporting is disabled\n");
-#endif
+        VERBOSE_PRINT("ABRT reporting is disabled\n");
         return;
     }
 
@@ -1112,9 +1128,7 @@ static void print_stack_trace(
     error_code = (*jvmti_env)->GetStackTrace(jvmti_env, thread, 0, MAX_STACK_TRACE_DEPTH, stack_frames, &count);
     check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
 
-#ifdef VERBOSE
-	    printf("Number of records filled: %d\n", count);
-#endif
+    VERBOSE_PRINT("Number of records filled: %d\n", count);
 
     /* is stack trace empty? */
     if (count < 1)
@@ -1122,12 +1136,6 @@ static void print_stack_trace(
         free(stack_trace_str);
         return;
     }
-
-#ifdef VERBOSE
-    printf("Exception Stack Trace\n");
-    printf("=====================\n");
-    printf("Stack Trace Depth: %d\n", count); 
-#endif
 
     sprintf(buf, "Uncatched exception in thread \"%s\" %s\n", thread_name, exception_class_name);
     strncat(stack_trace_str, buf, MAX_STACK_TRACE_STRING_LENGTH - strlen(stack_trace_str) - 1);
@@ -1138,12 +1146,17 @@ static void print_stack_trace(
         print_one_method_from_stack(jvmti_env, jni_env, stack_frame, stack_trace_str);
     }
 
-    puts(stack_trace_str);
+    VERBOSE_PRINT(
+    "Exception Stack Trace\n"
+    "=====================\n"
+    "Stack Trace Depth: %d\n"
+    "%s\n", count, stack_trace_str);
 
-    fprintf(fout, "Exception Stack Trace\n");
-    fprintf(fout, "=====================\n");
-    fprintf(fout, "Stack Trace Depth: %d\n", count); 
-    fprintf(fout, "%s\n", stack_trace_str);
+    log_print(
+    "Exception Stack Trace\n"
+    "=====================\n"
+    "Stack Trace Depth: %d\n"
+    "%s\n", count, stack_trace_str);
 
     register_abrt_event(processProperties.main_class, "Uncaught exception", (unsigned char *)original_method_name, stack_trace_str);
     free(stack_trace_str);
@@ -1186,12 +1199,12 @@ static void JNICALL callback_on_exception(
 
     if (catch_method == NULL)
     {
-        fprintf(fout, "Uncaught exception in thread \"%s\" ", tname);
+        log_print("Uncaught exception in thread \"%s\" ", tname);
         printf("Uncaught exception in thread \"%s\" ", tname);
     }
     else
     {
-        fprintf(fout, "Caught exception in thread \"%s\" ", tname);
+        log_print("Caught exception in thread \"%s\" ", tname);
         printf("Caught exception in thread \"%s\" ", tname);
     }
 
@@ -1205,7 +1218,7 @@ static void JNICALL callback_on_exception(
     class_name_ptr = format_class_name(class_signature_ptr, '.');
     updated_exception_name_ptr = format_class_name(exception_name_ptr, '\0');
 
-    fprintf(fout, "in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+    log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
     printf("%s\n", updated_exception_name_ptr);
 
     if (catch_method == NULL)
@@ -1222,7 +1235,7 @@ static void JNICALL callback_on_exception(
         {
             register_abrt_event(processProperties.main_class, "Caught exception: file not found", (unsigned char *)method_name_ptr, "");
         }
-        fprintf(fout, "exception object is: %s\n", exception_signature);
+        log_print("exception object is: %s\n", exception_signature);
         (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)exception_signature);
     }
 
@@ -1287,7 +1300,7 @@ static void JNICALL callback_on_exception_catch(
 #ifdef VERBOSE
     printf("An exception was caught in a method %s with signature %s\n", method_name_ptr, method_signature_ptr);
 #endif
-    fprintf(fout,"An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr); 
+    log_print("An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr); 
 
     /* cleapup */
     if (method_name_ptr != NULL)
@@ -1422,7 +1435,7 @@ static void JNICALL callback_on_compiled_method_load(
     check_jvmti_error(jvmti_env, error_code, "get method declaring class");
     (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature, NULL);
 
-    fprintf(fout, "Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
+    log_print("Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
         class_signature == NULL ? "" : class_signature,
         name, signature,
         generic_ptr == NULL ? "" : generic_ptr, (int)code_size);
@@ -1669,17 +1682,30 @@ void parse_commandline_options(char *options)
             value += 1;
         }
 
-#ifdef VERBOSE
-        printf("Parsed option '%s' = '%s'\n", key, value ? value : "(None)");
-#endif
+        VERBOSE_PRINT("Parsed option '%s' = '%s'\n", key, (value ? value : "(None)"));
         if (strcmp("abrt", key) == 0)
         {
             if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
             {
-#ifdef VERBOSE
-                puts("Enabling errors reporting to ABRT");
-#endif
+                VERBOSE_PRINT("Enabling errors reporting to ABRT\n");
                 reportErrosTo |= ED_ABRT;
+            }
+        }
+        else if(strcmp("output", key) == 0)
+        {
+            if (value == NULL || value[0] == '\0')
+            {
+                VERBOSE_PRINT("Disabling output to log file\n");
+                outputFileName = DISABLED_LOG_OUTPUT;
+            }
+            else
+            {
+                outputFileName = strdup(value);
+                if (outputFileName == NULL)
+                {
+                    fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": strdup(output): out of memory\n");
+                    VERBOSE_PRINT("Cannot configure output file to desired value, using "OUTPUT_FILE_NAME"\n");
+                }
             }
         }
         else
@@ -1743,12 +1769,18 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
         return error_code;
     }
 
-    /* open output log file */
-    fout = fopen(OUTPUT_FILE_NAME, "wt");
-    if (fout == NULL)
+    /* if output log file is not disabled */
+    if (outputFileName != DISABLED_LOG_OUTPUT)
     {
-        printf("ERROR: Can not create output file %s\n", OUTPUT_FILE_NAME);
-        return -1;
+        puts("File name");
+        const char *fn = (outputFileName != NULL ? outputFileName : OUTPUT_FILE_NAME);
+        /* open output log file */
+        fout = fopen(fn, "wt");
+        if (fout == NULL)
+        {
+            printf("ERROR: Can not create output file %s\n", fn);
+            return -1;
+        }
     }
 
     return JNI_OK;
@@ -1762,6 +1794,11 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
 JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
 {
     printf("Agent_OnUnLoad\n");
+    if (outputFileName != DISABLED_LOG_OUTPUT)
+    {
+        free(outputFileName);
+    }
+
     if (fout != NULL)
     {
         fclose(fout);
