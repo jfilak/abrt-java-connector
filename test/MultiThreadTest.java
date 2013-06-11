@@ -10,7 +10,7 @@ import java.net.*;
 
 class ThreadCaughtException extends Thread {
     public void run() {
-        SimpleTest.throwAndDontCatchException();
+        SimpleTest.throwAndCatchAllExceptions();
     }
 }
 
