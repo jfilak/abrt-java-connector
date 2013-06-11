@@ -67,6 +67,7 @@ public class SimpleTest {
      * Try to throw but don't catch one exception.
      */
     public static void throwAndDontCatchException() {
+        System.out.println("Throwing a NullPointerException");
         throwNullPointerException();
     }
 
