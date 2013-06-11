@@ -124,17 +124,11 @@ _add_test_target(
     DEPENDS ${TEST_JAVA_TARGETS}
 )
 
-add_custom_command(
-    OUTPUT ${REMOTE_JAR_PATH}
-    COMMAND su -c 'cp ${JAR_TEST_PATH} ${REMOTE_JAR_PATH}' || exit;
-    DEPENDS ${JAR_TEST_PATH}
-)
-
 _add_test_target(
     run_remote
-    RemoteTest ${SERVER_URL}/JarTest.jar
+    RemoteTest ${JAR_TEST_PATH}
     PRE rm -f SimpleTest.class
-    DEPENDS ${TEST_JAVA_TARGETS} ${REMOTE_JAR_PATH}
+    DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
 )
 
 _add_test_target(
