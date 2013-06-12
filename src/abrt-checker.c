@@ -1137,7 +1137,7 @@ static void print_stack_trace(
         return;
     }
 
-    sprintf(buf, "Uncatched exception in thread \"%s\" %s\n", thread_name, exception_class_name);
+    sprintf(buf, "Uncaught exception in thread \"%s\" %s\n", thread_name, exception_class_name);
     strncat(stack_trace_str, buf, MAX_STACK_TRACE_STRING_LENGTH - strlen(stack_trace_str) - 1);
 
     /* print content of stack frames */
