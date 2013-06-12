@@ -46,6 +46,7 @@ _add_class_target(com/redhat/abrt/test/Test TEST_JAVA_TARGETS)
 _add_class_target(BadClassTest TEST_JAVA_TARGETS)
 _add_class_target(MissingClass TEST_JAVA_TARGETS)
 _add_class_target(MissingClassTest TEST_JAVA_TARGETS MissingClass)
+_add_class_target(TryFinallyTest TEST_JAVA_TARGETS SimpleTest)
 
 _add_jar_target(JarTest JAR_TEST_PATH SimpleTest)
 set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
@@ -142,4 +143,10 @@ _add_test_target(
     MissingClassTest
     PRE rm -f MissingClassTest.class
     DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
+)
+
+_add_test_target(
+    run_try_finally
+    TryFinallyTest
+    DEPENDS ${TEST_JAVA_TARGETS}
 )
