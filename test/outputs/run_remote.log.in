@@ -1,0 +1,14 @@
+Caught java.lang.ArrayIndexOutOfBoundsException exception in thread "main" in a method SimpleTest.throwIndexOutOfBoundsException() with signature ()V
+Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException
+	at SimpleTest.throwIndexOutOfBoundsException(SimpleTest.java:24) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at SimpleTest.catchIndexOutOfBoundsException(SimpleTest.java:47) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at SimpleTest.throwAndCatchAllExceptions(SimpleTest.java:61) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at sun/reflect/NativeMethodAccessorImpl.invoke0(NativeMethodAccessorImpl.java:Unknown location) [unknown]
+	at sun/reflect/NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [unknown]
+Uncaught java.lang.NullPointerException exception in thread "main" in a method SimpleTest.throwNullPointerException() with signature ()V
+Exception in thread "main" java.lang.NullPointerException
+	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at SimpleTest.throwAndDontCatchException(SimpleTest.java:71) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at sun/reflect/NativeMethodAccessorImpl.invoke0(NativeMethodAccessorImpl.java:Unknown location) [unknown]
+	at sun/reflect/NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [unknown]
+	at sun/reflect/DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [unknown]

@@ -1,0 +1,5 @@
+Uncaught java.lang.ClassNotFoundException exception in thread "main" in a method java.lang.ClassLoader.loadClass() with signature (Ljava/lang/String;Z)Ljava/lang/Class;
+Exception in thread "main" java.lang.ClassNotFoundException
+	at java/lang/ClassLoader.loadClass(ClassLoader.java:435) [unknown]
+	at sun/misc/Launcher$AppClassLoader.loadClass(Launcher.java:308) [unknown]
+	at java/lang/ClassLoader.loadClass(ClassLoader.java:356) [unknown]

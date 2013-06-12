@@ -3,6 +3,8 @@ set(SERVER_URL "http://localhost")
 
 find_package(Java REQUIRED)
 
+subdirs(outputs)
+
 function(_get_target_names variable)
     foreach(tmp_name ${ARGN})
         set(${variable} ${CMAKE_CURRENT_BINARY_DIR}/${tmp_name}.class PARENT_SCOPE)
@@ -89,6 +91,9 @@ function(_add_test_target target_name)
         endif()
     endforeach(arg_val)
 
+    get_directory_property(all_run_targets ALL_RUN_TARGETS)
+    set_property(DIRECTORY PROPERTY ALL_RUN_TARGETS ${all_run_targets} ${target_name})
+
     add_custom_target(
         ${target_name}
         ${pre_command}
@@ -98,12 +103,17 @@ function(_add_test_target target_name)
     )
 endfunction()
 
+function(_add_test target_name expected_exit_code)
+    add_test(test_${target_name} /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/testdriver ${target_name} ${expected_exit_code} ${CMAKE_CURRENT_BINARY_DIR}/outputs/${target_name}.log ${CMAKE_CURRENT_BINARY_DIR}/${target_name}.log)
+endfunction()
+
 _add_test_target(
     run
     SimpleTest
     DEPENDS ${TEST_JAVA_TARGETS}
     AGENT_OPTIONS java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
+_add_test(run 2)
 
 _add_test_target(
     run_test
@@ -111,6 +121,7 @@ _add_test_target(
     DEPENDS ${TEST_JAVA_TARGETS}
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException:java.lang.UnsatisfiedLinkError:java.lang.ClassCastException:java.lang.StringIndexOutOfBoundsException:java.net.MalformedURLException:java.net.ConnectException:java.net.UnknownHostException:java.lang.NumberFormatException
 )
+_add_test(run_test 2)
 
 _add_test_target(
     run_package
@@ -118,6 +129,7 @@ _add_test_target(
     DEPENDS ${TEST_JAVA_TARGETS}
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
+_add_test(run_package 2)
 
 _add_test_target(
     run_jar
@@ -125,6 +137,7 @@ _add_test_target(
     DEPENDS ${JAR_TEST_PATH}
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
+_add_test(run_jar 2)
 
 _add_test_target(
     run_threads
@@ -132,6 +145,7 @@ _add_test_target(
     DEPENDS ${TEST_JAVA_TARGETS}
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
+_add_test(run_threads 0)
 
 _add_test_target(
     run_remote
@@ -140,12 +154,14 @@ _add_test_target(
     DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
+_add_test(run_remote 2)
 
 _add_test_target(
     run_bad_class
     BadClassTest
     DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
 )
+_add_test(run_bad_class 2)
 
 _add_test_target(
     run_missing_class_test
@@ -153,6 +169,7 @@ _add_test_target(
     PRE rm -f MissingClassTest.class
     DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
 )
+_add_test(run_missing_class_test 2)
 
 _add_test_target(
     run_try_finally
@@ -160,3 +177,7 @@ _add_test_target(
     DEPENDS ${TEST_JAVA_TARGETS}
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
+_add_test(run_try_finally 0)
+
+get_directory_property(all_run_targets ALL_RUN_TARGETS)
+add_custom_target(run_all DEPENDS ${all_run_targets})

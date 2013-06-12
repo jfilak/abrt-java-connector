@@ -1,0 +1,142 @@
+Caught java.lang.NumberFormatException exception in thread "main" in a method java.lang.Integer.parseInt() with signature (Ljava/lang/String;I)I
+Exception in thread "main" java.lang.NumberFormatException
+	at java/lang/Integer.parseInt(Integer.java:454) [unknown]
+	at java/lang/Integer.<init>(Integer.java:677) [unknown]
+	at sun/net/InetAddressCachePolicy.<clinit>(InetAddressCachePolicy.java:90) [unknown]
+	at java/net/InetAddress$Cache.getPolicy(InetAddress.java:744) [unknown]
+	at java/net/InetAddress$Cache.put(InetAddress.java:756) [unknown]
+Caught java.net.UnknownHostException exception in thread "main" in a method java.net.Inet6AddressImpl.lookupAllHostAddr() with signature (Ljava/lang/String;)[Ljava/net/InetAddress;
+Exception in thread "main" java.net.UnknownHostException
+	at java/net/Inet6AddressImpl.lookupAllHostAddr(Inet6AddressImpl.java:Unknown location) [unknown]
+	at java/net/InetAddress$1.lookupAllHostAddr(InetAddress.java:894) [unknown]
+	at java/net/InetAddress.getAddressesFromNameService(InetAddress.java:1286) [unknown]
+	at java/net/InetAddress.getAllByName0(InetAddress.java:1239) [unknown]
+	at java/net/InetAddress.getAllByName(InetAddress.java:1155) [unknown]
+Caught java.net.UnknownHostException exception in thread "main" in a method java.net.InetAddress.getAddressesFromNameService() with signature (Ljava/lang/String;Ljava/net/InetAddress;)[Ljava/net/InetAddress;
+Exception in thread "main" java.net.UnknownHostException
+	at java/net/InetAddress.getAddressesFromNameService(InetAddress.java:1328) [unknown]
+	at java/net/InetAddress.getAllByName0(InetAddress.java:1239) [unknown]
+	at java/net/InetAddress.getAllByName(InetAddress.java:1155) [unknown]
+	at java/net/InetAddress.getAllByName(InetAddress.java:1091) [unknown]
+	at java/net/InetAddress.getByName(InetAddress.java:1041) [unknown]
+Caught java.net.UnknownHostException exception in thread "main" in a method java.net.InetAddress.getAddressesFromNameService() with signature (Ljava/lang/String;Ljava/net/InetAddress;)[Ljava/net/InetAddress;
+Exception in thread "main" java.net.UnknownHostException
+	at java/net/InetAddress.getAddressesFromNameService(InetAddress.java:1333) [unknown]
+	at java/net/InetAddress.getAllByName0(InetAddress.java:1239) [unknown]
+	at java/net/InetAddress.getAllByName(InetAddress.java:1155) [unknown]
+	at java/net/InetAddress.getAllByName(InetAddress.java:1091) [unknown]
+	at java/net/InetAddress.getByName(InetAddress.java:1041) [unknown]
+Caught java.net.UnknownHostException exception in thread "main" in a method java.net.AbstractPlainSocketImpl.connect() with signature (Ljava/net/SocketAddress;I)V
+Exception in thread "main" java.net.UnknownHostException
+	at java/net/AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:178) [unknown]
+	at java/net/SocksSocketImpl.connect(SocksSocketImpl.java:391) [unknown]
+	at java/net/Socket.connect(Socket.java:579) [unknown]
+	at java/net/Socket.connect(Socket.java:528) [unknown]
+	at java/net/Socket.<init>(Socket.java:425) [unknown]
+Caught java.net.UnknownHostException exception in thread "main" in a method java.net.AbstractPlainSocketImpl.connect() with signature (Ljava/net/SocketAddress;I)V
+Exception in thread "main" java.net.UnknownHostException
+	at java/net/AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:191) [unknown]
+	at java/net/SocksSocketImpl.connect(SocksSocketImpl.java:391) [unknown]
+	at java/net/Socket.connect(Socket.java:579) [unknown]
+	at java/net/Socket.connect(Socket.java:528) [unknown]
+	at java/net/Socket.<init>(Socket.java:425) [unknown]
+Caught java.net.UnknownHostException exception in thread "main" in a method java.net.Socket.<init>() with signature (Ljava/net/SocketAddress;Ljava/net/SocketAddress;Z)V
+Exception in thread "main" java.net.UnknownHostException
+	at java/net/Socket.<init>(Socket.java:428) [unknown]
+	at java/net/Socket.<init>(Socket.java:208) [unknown]
+	at Test.readFromUnknownHost(Test.java:153) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.networkRelatedIssues(Test.java:439) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.main(Test.java:480) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.net.ConnectException exception in thread "main" in a method java.net.PlainSocketImpl.socketConnect() with signature (Ljava/net/InetAddress;II)V
+Exception in thread "main" java.net.ConnectException
+	at java/net/PlainSocketImpl.socketConnect(PlainSocketImpl.java:Unknown location) [unknown]
+	at java/net/AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:339) [unknown]
+	at java/net/AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:200) [unknown]
+	at java/net/AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:182) [unknown]
+	at java/net/SocksSocketImpl.connect(SocksSocketImpl.java:391) [unknown]
+Caught java.net.ConnectException exception in thread "main" in a method java.net.AbstractPlainSocketImpl.doConnect() with signature (Ljava/net/InetAddress;II)V
+Exception in thread "main" java.net.ConnectException
+	at java/net/AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:355) [unknown]
+	at java/net/AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:200) [unknown]
+	at java/net/AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:182) [unknown]
+	at java/net/SocksSocketImpl.connect(SocksSocketImpl.java:391) [unknown]
+	at java/net/Socket.connect(Socket.java:579) [unknown]
+Caught java.net.ConnectException exception in thread "main" in a method java.net.AbstractPlainSocketImpl.doConnect() with signature (Ljava/net/InetAddress;II)V
+Exception in thread "main" java.net.ConnectException
+	at java/net/AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:359) [unknown]
+	at java/net/AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:200) [unknown]
+	at java/net/AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:182) [unknown]
+	at java/net/SocksSocketImpl.connect(SocksSocketImpl.java:391) [unknown]
+	at java/net/Socket.connect(Socket.java:579) [unknown]
+Caught java.net.ConnectException exception in thread "main" in a method java.net.AbstractPlainSocketImpl.connect() with signature (Ljava/net/SocketAddress;I)V
+Exception in thread "main" java.net.ConnectException
+	at java/net/AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:191) [unknown]
+	at java/net/SocksSocketImpl.connect(SocksSocketImpl.java:391) [unknown]
+	at java/net/Socket.connect(Socket.java:579) [unknown]
+	at java/net/Socket.connect(Socket.java:528) [unknown]
+	at java/net/Socket.<init>(Socket.java:425) [unknown]
+Caught java.net.ConnectException exception in thread "main" in a method java.net.Socket.<init>() with signature (Ljava/net/SocketAddress;Ljava/net/SocketAddress;Z)V
+Exception in thread "main" java.net.ConnectException
+	at java/net/Socket.<init>(Socket.java:428) [unknown]
+	at java/net/Socket.<init>(Socket.java:208) [unknown]
+	at Test.readFromSocket(Test.java:173) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.networkRelatedIssues(Test.java:440) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.main(Test.java:480) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.net.MalformedURLException exception in thread "main" in a method java.net.URL.<init>() with signature (Ljava/net/URL;Ljava/lang/String;Ljava/net/URLStreamHandler;)V
+Exception in thread "main" java.net.MalformedURLException
+	at java/net/URL.<init>(URL.java:585) [unknown]
+	at java/net/URL.<init>(URL.java:482) [unknown]
+	at java/net/URL.<init>(URL.java:431) [unknown]
+	at Test.malformedURL(Test.java:190) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.networkRelatedIssues(Test.java:442) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.net.MalformedURLException exception in thread "main" in a method java.net.URL.<init>() with signature (Ljava/net/URL;Ljava/lang/String;Ljava/net/URLStreamHandler;)V
+Exception in thread "main" java.net.MalformedURLException
+	at java/net/URL.<init>(URL.java:617) [unknown]
+	at java/net/URL.<init>(URL.java:482) [unknown]
+	at java/net/URL.<init>(URL.java:431) [unknown]
+	at Test.malformedURL(Test.java:190) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.networkRelatedIssues(Test.java:442) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.lang.ArrayIndexOutOfBoundsException exception in thread "main" in a method Test.throwIndexOutOfBoundsException() with signature ()V
+Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException
+	at Test.throwIndexOutOfBoundsException(Test.java:232) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.catchIndexOutOfBoundsException(Test.java:313) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.throwAndCatchAllExceptions(Test.java:452) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.main(Test.java:481) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.lang.StringIndexOutOfBoundsException exception in thread "main" in a method java.lang.String.charAt() with signature (I)C
+Exception in thread "main" java.lang.StringIndexOutOfBoundsException
+	at java/lang/String.charAt(String.java:658) [unknown]
+	at Test.throwStringIndexOutOfBoundsException(Test.java:244) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.catchStringIndexOutOfBoundsException(Test.java:328) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.throwAndCatchAllExceptions(Test.java:453) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.main(Test.java:481) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.lang.NullPointerException exception in thread "main" in a method Test.throwNullPointerException() with signature ()V
+Exception in thread "main" java.lang.NullPointerException
+	at Test.throwNullPointerException(Test.java:256) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.catchNullPointerException(Test.java:343) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.throwAndCatchAllExceptions(Test.java:454) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.main(Test.java:481) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.lang.ClassCastException exception in thread "main" in a method Test.throwClassCastException() with signature ()V
+Exception in thread "main" java.lang.ClassCastException
+	at Test.throwClassCastException(Test.java:268) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.catchClassCastException(Test.java:358) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.throwAndCatchAllExceptions(Test.java:455) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.main(Test.java:481) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.lang.UnsatisfiedLinkError exception in thread "main" in a method java.lang.Runtime.load0() with signature (Ljava/lang/Class;Ljava/lang/String;)V
+Exception in thread "main" java.lang.UnsatisfiedLinkError
+	at java/lang/Runtime.load0(Runtime.java:789) [unknown]
+	at java/lang/System.load(System.java:1059) [unknown]
+	at Test.loadLibrary(Test.java:291) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.catchUnsatisfiedLinkErrorUserLibrary(Test.java:388) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.throwAndCatchAllExceptions(Test.java:457) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Caught java.lang.UnsatisfiedLinkError exception in thread "main" in a method java.lang.ClassLoader.loadLibrary() with signature (Ljava/lang/Class;Ljava/lang/String;Z)V
+Exception in thread "main" java.lang.UnsatisfiedLinkError
+	at java/lang/ClassLoader.loadLibrary(ClassLoader.java:1860) [unknown]
+	at java/lang/Runtime.loadLibrary0(Runtime.java:845) [unknown]
+	at java/lang/System.loadLibrary(System.java:1084) [unknown]
+	at Test.loadSystemLibrary(Test.java:302) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.catchUnsatisfiedLinkErrorSystemLibrary(Test.java:403) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+Uncaught java.lang.NullPointerException exception in thread "main" in a method Test.throwNullPointerException() with signature ()V
+Exception in thread "main" java.lang.NullPointerException
+	at Test.throwNullPointerException(Test.java:256) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.throwAndDontCatchException(Test.java:467) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.main(Test.java:484) [file:@CMAKE_BINARY_DIR@/test/Test.class]

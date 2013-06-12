@@ -1,0 +1,18 @@
+#!/bin/sh
+make $1
+EC=$?
+
+if [ $EC -ne $2 ]; then
+    echo "Expected exit code $2 but got $EC"
+    exit 1
+fi
+
+diff -u $3 $4
+EC=$?
+
+if [ 0 -ne $EC ]; then
+    echo "Expected $3 differs from result $4"
+    exit 1
+fi
+
+exit 0

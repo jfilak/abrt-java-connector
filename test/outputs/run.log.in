@@ -1,0 +1,5 @@
+Uncaught java.lang.NullPointerException exception in thread "main" in a method SimpleTest.throwNullPointerException() with signature ()V
+Exception in thread "main" java.lang.NullPointerException
+	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
+	at SimpleTest.throwAndDontCatchException(SimpleTest.java:71) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
+	at SimpleTest.main(SimpleTest.java:83) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]

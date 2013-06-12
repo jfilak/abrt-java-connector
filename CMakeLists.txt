@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
 project(abrt-java-connector)
+enable_testing()
 
 # Beware, PROJECT_VERSION will be overridden by information from git
 set(PROJECT_VERSION "0.1.1")
