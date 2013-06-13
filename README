@@ -28,3 +28,16 @@ Example2:
 - options sent to the agent are specified right behind it's name
 
 $  java -agentlib:abrt-java-connector=abrt=on $MyClass -platform.jvmtiSupported true
+
+
+Example3:
+- this example shows how to configure the log output destination
+- output option is designed for this purpose
+- by default abrt-java-connector prints the log to abrt_checker_$PID.log file in the current directory
+- the first command prints agent's output to /tmp/abrt-agent.log file
+
+$  java -agentlib:abrt-java-connector=output=/tmp/abrt-agent.log $MyClass -platform.jvmtiSupported true
+
+- the second command completely disables logging to file
+
+$  java -agentlib:abrt-java-connector=output= $MyClass -platform.jvmtiSupported true

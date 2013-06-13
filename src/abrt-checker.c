@@ -70,9 +70,6 @@
 /* Don't need to be changed */
 #define MAX_THREAD_NAME_LENGTH 40
 
-/* Name of file created by the agent */
-#define OUTPUT_FILE_NAME "agent.log"
-
 /* Max. length of stack trace */
 #define MAX_STACK_TRACE_STRING_LENGTH 10000
 
@@ -175,6 +172,35 @@ char *outputFileName;
 /* forward headers */
 static char* get_path_to_class(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jclass class, char *class_name, const char *stringize_method_name);
 static void print_jvm_environment_variables_to_file(FILE *out);
+
+
+
+/*
+ * Returns a static memory with default log file name. Must not be released by free()!
+ */
+static const char *get_default_log_file_name()
+{
+    static const char DEFAULT_LOG_FILE_NAME_FORMAT[] = "abrt_checker_%d.log";
+    /* A bit more than necessary but this is an optimization and few more Bytes can't kill us */
+#define _AUX_LOG_FILE_NAME_MAX_LENGTH (sizeof(DEFAULT_LOG_FILE_NAME_FORMAT) + sizeof(int) * 3)
+    static char log_file_name[_AUX_LOG_FILE_NAME_MAX_LENGTH];
+    static int initialized = 0;
+
+    if (initialized == 0)
+    {
+        initialized = 1;
+
+        pid_t pid = getpid();
+        /* snprintf() returns -1 on error */
+        if (0 > snprintf(log_file_name, _AUX_LOG_FILE_NAME_MAX_LENGTH, DEFAULT_LOG_FILE_NAME_FORMAT, pid))
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": snprintf(): can't print default log file name\n");
+            return NULL;
+        }
+    }
+#undef _AUX_LOG_FILE_NAME_MAX_LENGTH
+    return log_file_name;
+}
 
 
 
@@ -1696,7 +1722,8 @@ void parse_commandline_options(char *options)
                 if (outputFileName == NULL)
                 {
                     fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": strdup(output): out of memory\n");
-                    VERBOSE_PRINT("Cannot configure output file to desired value, using "OUTPUT_FILE_NAME"\n");
+                    VERBOSE_PRINT("Can not configure output file to desired value\n");
+                    /* keep NULL in outputFileName -> the default name will be used */
                 }
             }
         }
@@ -1764,12 +1791,13 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     /* if output log file is not disabled */
     if (outputFileName != DISABLED_LOG_OUTPUT)
     {
-        const char *fn = (outputFileName != NULL ? outputFileName : OUTPUT_FILE_NAME);
         /* open output log file */
+        const char *fn = (outputFileName != NULL ? outputFileName : get_default_log_file_name());
+        VERBOSE_PRINT("Path to the log file: %s\n", fn);
         fout = fopen(fn, "wt");
         if (fout == NULL)
         {
-            printf("ERROR: Can not create output file %s\n", fn);
+            fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": can not create output file %s\n", fn);
             return -1;
         }
     }
