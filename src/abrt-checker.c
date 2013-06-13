@@ -247,6 +247,18 @@ static const char * null2empty(const char *str)
 
 
 /*
+ * Returns non zero value if exception's type is intended to be reported even
+ * if the exception was caught.
+ */
+static int exception_is_intended_to_be_reported(const char *type_name)
+{
+    /* special cases for selected exceptions */
+    return strcmp("java.io.FileNotFoundException", type_name) == 0;
+}
+
+
+
+/*
  * Add JVM environment data into ABRT event message.
  */
 static void add_jvm_environment_data(problem_data_t *pd)
@@ -1162,7 +1174,7 @@ static char *generate_stack_trace(
         return NULL;
     }
 
-    sprintf(buf, "Uncaught exception in thread \"%s\" %s\n", thread_name, exception_class_name);
+    sprintf(buf, "Exception in thread \"%s\" %s\n", thread_name, exception_class_name);
     strncat(stack_trace_str, buf, MAX_STACK_TRACE_STRING_LENGTH - strlen(stack_trace_str) - 1);
 
     /* print content of stack frames */
@@ -1221,17 +1233,6 @@ static void JNICALL callback_on_exception(
 
     exception_class = (*jni_env)->GetObjectClass(jni_env, exception_object);
 
-    if (catch_method == NULL)
-    {
-        log_print("Uncaught exception in thread \"%s\" ", tname);
-        printf("Uncaught exception in thread \"%s\" ", tname);
-    }
-    else
-    {
-        log_print("Caught exception in thread \"%s\" ", tname);
-        printf("Caught exception in thread \"%s\" ", tname);
-    }
-
     /* retrieve all required informations */
     (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
     (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &method_class);
@@ -1242,29 +1243,19 @@ static void JNICALL callback_on_exception(
     class_name_ptr = format_class_name(class_signature_ptr, '.');
     updated_exception_name_ptr = format_class_name(exception_name_ptr, '\0');
 
-    log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
-    printf("%s\n", updated_exception_name_ptr);
+    printf("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
+    printf("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
 
-    if (catch_method == NULL)
+    if (catch_method == NULL || exception_is_intended_to_be_reported(updated_exception_name_ptr))
     {
+        log_print("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
+        log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+
         char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
         if (NULL != stack_trace_str)
         {
-            register_abrt_event(processProperties.main_class, "Uncaught exception", (unsigned char *)method_name_ptr, stack_trace_str);
+            register_abrt_event(processProperties.main_class, (catch_method == NULL ? "Uncaught exception" : "Caught exception"), (unsigned char *)method_name_ptr, stack_trace_str);
             free(stack_trace_str);
-        }
-    }
-    else
-    {
-        /* special cases for selected exceptions */
-        if (strcmp("java.io.FileNotFoundException", updated_exception_name_ptr)==0)
-        {
-            char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
-            if (NULL != stack_trace_str)
-            {
-                register_abrt_event(processProperties.main_class, "Caught exception: file not found", (unsigned char *)method_name_ptr, stack_trace_str);
-                free(stack_trace_str);
-            }
         }
     }
 
