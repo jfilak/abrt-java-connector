@@ -15,8 +15,8 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-#ifndef __JTHROWABLE_STASH__
-#define __JTHROWABLE_STASH__
+#ifndef __JTHROWABLE_CIRCULAR_BUF__
+#define __JTHROWABLE_CIRCULAR_BUF__
 
 
 
@@ -82,7 +82,7 @@ jthrowable jthrowable_circular_buf_find(T_jthrowableCircularBuf *buffer, jthrowa
 
 
 
-#endif // __JTHROWABLE_STASH__
+#endif // __JTHROWABLE_CIRCULAR_BUF__
 
 
 
