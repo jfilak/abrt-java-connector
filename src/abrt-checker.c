@@ -1313,7 +1313,6 @@ static void JNICALL callback_on_exception_catch(
 
     char *method_name_ptr;
     char *method_signature_ptr;
-    char *class_name_ptr;
     char *class_signature_ptr;
 
     jclass class;
@@ -1326,11 +1325,12 @@ static void JNICALL callback_on_exception_catch(
     (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
     (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature_ptr, NULL);
 
+#ifdef VERBOSE
     /* readable class name */
-    class_name_ptr = format_class_name(class_signature_ptr, '.');
+    char *class_name_ptr = format_class_name(class_signature_ptr, '.');
+#endif
 
-    VERBOSE_PRINT("An exception was caught in a method %s with signature %s\n", method_name_ptr, method_signature_ptr);
-    log_print("An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+    VERBOSE_PRINT("An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
 
     /* cleapup */
     if (method_name_ptr != NULL)
