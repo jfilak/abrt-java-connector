@@ -111,7 +111,7 @@ _add_test_target(
     run
     SimpleTest
     DEPENDS ${TEST_JAVA_TARGETS}
-    AGENT_OPTIONS java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
 _add_test(run 2)
 

@@ -5,10 +5,9 @@
  * @author Jakub Filak &lt;jfilak@redhat.com&gt;
  */
 public class TryFinallyTest {
-    /**
-     * Entry point to this TryFinally test.
-     */
-    public static void main(String args[]) {
+
+    public static void run()
+    {
         try {
             System.out.println("TryFinallyTest.java exceptions inside try without catch and with finally");
             SimpleTest.throwAndCatchAllExceptions();
@@ -18,8 +17,15 @@ public class TryFinallyTest {
         }
         finally {
             System.out.println("finally block");
-            System.exit(0);
         }
+    }
+
+    /**
+     * Entry point to this TryFinally test.
+     */
+    public static void main(String args[]) {
+        run();
+        System.exit(0);
     }
 }
 

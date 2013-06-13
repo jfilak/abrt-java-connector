@@ -1,3 +1,9 @@
+Caught java.lang.ArrayIndexOutOfBoundsException exception in thread "main" in a method SimpleTest.throwIndexOutOfBoundsException() with signature ()V
+Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException
+	at SimpleTest.throwIndexOutOfBoundsException(SimpleTest.java:24) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
+	at SimpleTest.catchIndexOutOfBoundsException(SimpleTest.java:47) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
+	at SimpleTest.throwAndCatchAllExceptions(SimpleTest.java:61) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
+	at SimpleTest.main(SimpleTest.java:81) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 Uncaught java.lang.NullPointerException exception in thread "main" in a method SimpleTest.throwNullPointerException() with signature ()V
 Exception in thread "main" java.lang.NullPointerException
 	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
