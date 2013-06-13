@@ -1126,11 +1126,10 @@ static void print_one_method_from_stack(
 /*
  * Print stack trace for given thread.
  */
-static void print_stack_trace(
+static char *generate_stack_trace(
             jvmtiEnv *jvmti_env,
             JNIEnv   *jni_env,
             jthread   thread,
-            char     *original_method_name,
             char     *thread_name,
             char     *exception_class_name)
 {
@@ -1147,7 +1146,7 @@ static void print_stack_trace(
     if (stack_trace_str == NULL)
     {
         fprintf(stderr, "calloc(): out of memory");
-        return;
+        return NULL;
     }
 
     /* get stack trace */
@@ -1160,7 +1159,7 @@ static void print_stack_trace(
     if (count < 1)
     {
         free(stack_trace_str);
-        return;
+        return NULL;
     }
 
     sprintf(buf, "Uncaught exception in thread \"%s\" %s\n", thread_name, exception_class_name);
@@ -1184,8 +1183,7 @@ static void print_stack_trace(
     "Stack Trace Depth: %d\n"
     "%s\n", count, stack_trace_str);
 
-    register_abrt_event(processProperties.main_class, "Uncaught exception", (unsigned char *)original_method_name, stack_trace_str);
-    free(stack_trace_str);
+    return stack_trace_str;
 }
 
 
@@ -1249,16 +1247,25 @@ static void JNICALL callback_on_exception(
 
     if (catch_method == NULL)
     {
-        print_stack_trace(jvmti_env, jni_env, thr, method_name_ptr, tname, updated_exception_name_ptr);
+        char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
+        if (NULL != stack_trace_str)
+        {
+            register_abrt_event(processProperties.main_class, "Uncaught exception", (unsigned char *)method_name_ptr, stack_trace_str);
+            free(stack_trace_str);
+        }
     }
     else
     {
         /* special cases for selected exceptions */
         if (strcmp("java.io.FileNotFoundException", updated_exception_name_ptr)==0)
         {
-            register_abrt_event(processProperties.main_class, "Caught exception: file not found", (unsigned char *)method_name_ptr, "");
+            char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
+            if (NULL != stack_trace_str)
+            {
+                register_abrt_event(processProperties.main_class, "Caught exception: file not found", (unsigned char *)method_name_ptr, stack_trace_str);
+                free(stack_trace_str);
+            }
         }
-        log_print("exception object is: %s\n", updated_exception_name_ptr);
     }
 
     /* cleapup */
