@@ -1253,16 +1253,12 @@ static void JNICALL callback_on_exception(
     }
     else
     {
-        char *exception_signature;
-        jclass class = (*jni_env)->GetObjectClass(jni_env, exception_object);
-        (*jvmti_env)->GetClassSignature(jvmti_env, class, &exception_signature, NULL);
         /* special cases for selected exceptions */
-        if (strcmp("Ljava/io/FileNotFoundException;", exception_signature)==0)
+        if (strcmp("java.io.FileNotFoundException", updated_exception_name_ptr)==0)
         {
             register_abrt_event(processProperties.main_class, "Caught exception: file not found", (unsigned char *)method_name_ptr, "");
         }
-        log_print("exception object is: %s\n", exception_signature);
-        (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)exception_signature);
+        log_print("exception object is: %s\n", updated_exception_name_ptr);
     }
 
     /* cleapup */
