@@ -71,6 +71,7 @@ get_property(AGENT_NAME TARGET AbrtChecker PROPERTY OUTPUT_NAME)
 #        [java_param] ... [java_param]
 #        PRE [cmd] [arg] ... [arg]
 #        DEPENDS [dependency] ... [dependency])
+#        AGENT_OPTIONS [key=value] ... [key=value]
 #
 #        The shell command specified in the PRE param will be run before java
 #
@@ -81,6 +82,8 @@ function(_add_test_target target_name)
             set(current_var pre_command)
         elseif(arg_val STREQUAL "DEPENDS")
             set(current_var depends)
+        elseif(arg_val STREQUAL "AGENT_OPTIONS")
+            set(current_var agent_options)
         else()
             set(${current_var} ${${current_var}} ${arg_val})
         endif()
@@ -89,7 +92,7 @@ function(_add_test_target target_name)
     add_custom_target(
         ${target_name}
         ${pre_command}
-        COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}="caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException,abrt=$$ABRT_ENABLED,output=${target_name}.log" ${java_params} -platform.jvmtiSupported true
+        COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}="${agent_options},abrt=$$ABRT_ENABLED,output=${target_name}.log" ${java_params} -platform.jvmtiSupported true
         DEPENDS AbrtChecker ${depends}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
@@ -99,30 +102,35 @@ _add_test_target(
     run
     SimpleTest
     DEPENDS ${TEST_JAVA_TARGETS}
+    AGENT_OPTIONS java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
 
 _add_test_target(
     run_test
     Test
     DEPENDS ${TEST_JAVA_TARGETS}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException:java.lang.UnsatisfiedLinkError:java.lang.ClassCastException:java.lang.StringIndexOutOfBoundsException:java.net.MalformedURLException:java.net.ConnectException:java.net.UnknownHostException:java.lang.NumberFormatException
 )
 
 _add_test_target(
     run_package
     com.redhat.abrt.test.Test
     DEPENDS ${TEST_JAVA_TARGETS}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
 
 _add_test_target(
     run_jar
     -cp JarTest.jar SimpleTest
     DEPENDS ${JAR_TEST_PATH}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
 
 _add_test_target(
     run_threads
     MultiThreadTest
     DEPENDS ${TEST_JAVA_TARGETS}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
 
 _add_test_target(
@@ -130,6 +138,7 @@ _add_test_target(
     RemoteTest ${JAR_TEST_PATH}
     PRE rm -f SimpleTest.class
     DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
 
 _add_test_target(
@@ -149,4 +158,5 @@ _add_test_target(
     run_try_finally
     TryFinallyTest
     DEPENDS ${TEST_JAVA_TARGETS}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
