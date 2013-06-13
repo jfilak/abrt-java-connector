@@ -54,3 +54,7 @@ clean:
 .PHONY: distclean
 distclean:
 	rm -rf $(OUT_DIR)
+
+.PHONY: check
+check: build
+	cd $(OUT_DIR) && make test
