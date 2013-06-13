@@ -89,7 +89,7 @@ function(_add_test_target target_name)
     add_custom_target(
         ${target_name}
         ${pre_command}
-        COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}="abrt=$$ABRT_ENABLED,output=${target_name}.log" ${java_params} -platform.jvmtiSupported true
+        COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}="caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException,abrt=$$ABRT_ENABLED,output=${target_name}.log" ${java_params} -platform.jvmtiSupported true
         DEPENDS AbrtChecker ${depends}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )

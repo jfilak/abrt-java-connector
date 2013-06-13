@@ -41,3 +41,12 @@ $  java -agentlib:abrt-java-connector=output=/tmp/abrt-agent.log $MyClass -platf
 - the second command completely disables logging to file
 
 $  java -agentlib:abrt-java-connector=output= $MyClass -platform.jvmtiSupported true
+
+
+Example4:
+- this example shows how to enable reporting of caught exceptions
+- caught option is designed for this purpose
+- by default no caught exception is reported
+- user must provide a colon separated list of exception type names
+
+$  java -agentlib:abrt-java-connector=caught=java.io.FileNotFoundException:java.io.FileNotFoundException $MyClass -platform.jvmtiSupported true

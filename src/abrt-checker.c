@@ -163,6 +163,9 @@ T_errorDestination reportErrosTo;
 /* Path (not necessary absolute) to output file */
 char *outputFileName;
 
+/* Path (not necessary absolute) to output file */
+char **reportedCaughExceptionTypes;
+
 
 /* Define a helper macro*/
 # define log_print(...) do { if(outputFileName != DISABLED_LOG_OUTPUT) fprintf(fout, __VA_ARGS__); } while(0)
@@ -252,8 +255,17 @@ static const char * null2empty(const char *str)
  */
 static int exception_is_intended_to_be_reported(const char *type_name)
 {
-    /* special cases for selected exceptions */
-    return strcmp("java.io.FileNotFoundException", type_name) == 0;
+    if (reportedCaughExceptionTypes != NULL)
+    {
+        /* special cases for selected exceptions */
+        for (char **cursor = reportedCaughExceptionTypes; *cursor; ++cursor)
+        {
+            if (strcmp(*cursor, type_name) == 0)
+                return 1;
+        }
+    }
+
+    return 0;
 }
 
 
@@ -1666,6 +1678,58 @@ jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env)
 
 
 /*
+ * Returns NULL-terminated char *vector[]. Result itself must be freed,
+ * but do no free list elements. IOW: do free(result), but never free(result[i])!
+ * If separated_list is NULL or "", returns NULL.
+ */
+static char **build_string_vector(const char *separated_list, char separator)
+{
+    char **vector = NULL;
+    if (separated_list && separated_list[0])
+    {
+        /* even w/o commas, we'll need two elements:
+         * vector[0] = "name"
+         * vector[1] = NULL
+         */
+        unsigned cnt = 2;
+
+        const char *cp = separated_list;
+        while (*cp)
+            cnt += (*cp++ == separator);
+
+        /* We place the string directly after the char *vector[cnt]: */
+        const size_t vector_num_bytes = cnt * sizeof(vector[0]) + (cp - separated_list) + 1;
+        vector = malloc(vector_num_bytes);
+        if (vector == NULL)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
+            return NULL;
+        }
+        vector[cnt-1] = NULL;
+
+        /* Copy the origin string right behind the pointer region */
+        char *p = strcpy((char*)&vector[cnt], separated_list);
+
+        char **pp = vector;
+        *pp++ = p;
+        while (*p)
+        {
+            if (*p++ == separator)
+            {
+                /* Replace 'separator' by '\0' */
+                p[-1] = '\0';
+                /* Save pointer to the beginning of next string in the pointer region */
+                *pp++ = p;
+            }
+        }
+    }
+
+    return vector;
+}
+
+
+
+/*
  * Parses options passed from the command line and save results in global variables.
  * The function expects string in the following format:
  *  [key[=value][,key[=value]]...]
@@ -1720,6 +1784,10 @@ void parse_commandline_options(char *options)
                     /* keep NULL in outputFileName -> the default name will be used */
                 }
             }
+        }
+        else if(strcmp("caught", key) == 0)
+        {
+            reportedCaughExceptionTypes = build_string_vector(value, ':');
         }
         else
         {
@@ -1811,6 +1879,8 @@ JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
     {
         free(outputFileName);
     }
+
+    free(reportedCaughExceptionTypes);
 
     if (fout != NULL)
     {
