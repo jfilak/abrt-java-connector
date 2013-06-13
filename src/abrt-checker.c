@@ -562,7 +562,7 @@ char *get_executable(int pid)
     char *executable = malloc_readlink(buf);
     if (!executable)
     {
-        fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": can't read executable name from /proc/${PID}/exe");
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can't read executable name from /proc/${PID}/exe");
         return NULL;
     }
 
@@ -640,7 +640,7 @@ static char * create_updated_class_name(char *class_name)
     char *upd_class_name = (char*)malloc(strlen(class_name)+1);
     if (upd_class_name == NULL)
     {
-        fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": malloc(): out of memory");
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
         return NULL;
     }
     strcpy(upd_class_name, class_name);
@@ -946,7 +946,7 @@ static char* get_path_to_class_class_loader(
     char *upd_class_name = (char*)malloc(strlen(class_name) + sizeof("class") + 1);
     if (upd_class_name == NULL)
     {
-        fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": malloc(): out of memory");
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
         return NULL;
     }
 
@@ -1065,9 +1065,9 @@ static void print_one_method_from_stack(
         return;
     }
     error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, stack_frame.method, &declaring_class);
-    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     error_code = (*jvmti_env)->GetClassSignature(jvmti_env, declaring_class, &declaring_class_name, NULL);
-    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
 
     if (error_code != JVMTI_ERROR_NONE)
     {
@@ -1112,12 +1112,12 @@ static void print_one_method_from_stack(
     if (method_name != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)method_name);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
     if (declaring_class_name != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)declaring_class_name);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
 }
 
@@ -1152,7 +1152,7 @@ static void print_stack_trace(
 
     /* get stack trace */
     error_code = (*jvmti_env)->GetStackTrace(jvmti_env, thread, 0, MAX_STACK_TRACE_DEPTH, stack_frames, &count);
-    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
 
     VERBOSE_PRINT("Number of records filled: %d\n", count);
 
@@ -1269,22 +1269,22 @@ static void JNICALL callback_on_exception(
     if (method_name_ptr != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_name_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
     if (method_signature_ptr != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_signature_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
     if (class_signature_ptr != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)class_signature_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
     if (exception_name_ptr != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)exception_name_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
 
     exit_critical_section(jvmti_env);
@@ -1330,17 +1330,17 @@ static void JNICALL callback_on_exception_catch(
     if (method_name_ptr != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_name_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
     if (method_signature_ptr != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_signature_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
     if (class_signature_ptr != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)class_signature_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(_LINE__));
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
 
     exit_critical_section(jvmti_env);
@@ -1721,7 +1721,7 @@ void parse_commandline_options(char *options)
                 outputFileName = strdup(value);
                 if (outputFileName == NULL)
                 {
-                    fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": strdup(output): out of memory\n");
+                    fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": strdup(output): out of memory\n");
                     VERBOSE_PRINT("Can not configure output file to desired value\n");
                     /* keep NULL in outputFileName -> the default name will be used */
                 }
@@ -1797,7 +1797,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
         fout = fopen(fn, "wt");
         if (fout == NULL)
         {
-            fprintf(stderr, __FILE__ ":" STRINGIZE(_LINE__) ": can not create output file %s\n", fn);
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can not create output file %s\n", fn);
             return -1;
         }
     }
