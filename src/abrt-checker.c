@@ -1427,7 +1427,7 @@ static void JNICALL callback_on_compiled_method_load(
     check_jvmti_error(jvmti_env, error_code, "get method declaring class");
     (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature, NULL);
 
-    log_print("Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
+    printf("Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
         class_signature == NULL ? "" : class_signature,
         name, signature,
         generic_ptr == NULL ? "" : generic_ptr, (int)code_size);
