@@ -1201,11 +1201,6 @@ static char *generate_stack_trace(
     "Stack Trace Depth: %d\n"
     "%s\n", count, stack_trace_str);
 
-    log_print(
-    "Exception Stack Trace\n"
-    "=====================\n"
-    "Stack Trace Depth: %d\n"
-    "%s\n", count, stack_trace_str);
 
     return stack_trace_str;
 }
@@ -1266,6 +1261,7 @@ static void JNICALL callback_on_exception(
         char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
         if (NULL != stack_trace_str)
         {
+            log_print("%s", stack_trace_str);
             register_abrt_event(processProperties.main_class, (catch_method == NULL ? "Uncaught exception" : "Caught exception"), (unsigned char *)method_name_ptr, stack_trace_str);
             free(stack_trace_str);
         }
