@@ -1072,6 +1072,181 @@ static char* get_path_to_class(
 /*
  * Print one method from stack frame.
  */
+static int print_stack_trace_element(
+            jvmtiEnv       *jvmti_env,
+            JNIEnv         *jni_env,
+            jobject         stack_frame,
+            char           *stack_trace_str)
+{
+    jclass stack_frame_class = (*jni_env)->GetObjectClass(jni_env, stack_frame);
+    jmethodID get_class_name_method = (*jni_env)->GetMethodID(jni_env, stack_frame_class, "getClassName", "()Ljava/lang/String;");
+    if (get_class_name_method == NULL)
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, stack_frame_class);
+        return -1;
+    }
+
+    jstring class_name_of_frame_method = (*jni_env)->CallObjectMethod(jni_env, stack_frame, get_class_name_method);
+    if ((*jni_env)->ExceptionOccurred(jni_env))
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, stack_frame_class);
+        (*jni_env)->ExceptionClear(jni_env);
+        return -1;
+    }
+    if (class_name_of_frame_method == NULL)
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, stack_frame_class);
+        return -1;
+    }
+
+    char *cls_name_str = (char*)(*jni_env)->GetStringUTFChars(jni_env, class_name_of_frame_method, NULL);
+    jclass class_of_frame_method = (*jni_env)->FindClass(jni_env, cls_name_str);
+    char *class_location = NULL;
+
+    if ((*jni_env)->ExceptionOccurred(jni_env))
+    {
+        (*jni_env)->ExceptionClear(jni_env);
+    }
+    else
+    {
+        char *updated_cls_name_str = create_updated_class_name(cls_name_str);
+        class_location = get_path_to_class(jvmti_env, jni_env, class_of_frame_method, updated_cls_name_str, TO_EXTERNAL_FORM_METHOD_NAME);
+        (*jni_env)->DeleteLocalRef(jni_env, class_of_frame_method);
+        free(updated_cls_name_str);
+    }
+    (*jni_env)->ReleaseStringUTFChars(jni_env, class_name_of_frame_method, cls_name_str);
+
+    jmethodID to_string_method = (*jni_env)->GetMethodID(jni_env, stack_frame_class, "toString", "()Ljava/lang/String;");
+    (*jni_env)->DeleteLocalRef(jni_env, stack_frame_class);
+    if (to_string_method == NULL)
+    {
+        return -1;
+    }
+
+    jobject orig_str = (*jni_env)->CallObjectMethod(jni_env, stack_frame, to_string_method);
+    if ((*jni_env)->ExceptionOccurred(jni_env))
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, orig_str);
+        (*jni_env)->ExceptionClear(jni_env);
+        return -1;
+    }
+    if (orig_str == NULL)
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, orig_str);
+        return -1;
+    }
+
+    char *str = (char*)(*jni_env)->GetStringUTFChars(jni_env, orig_str, NULL);
+    int wrote = sprintf(stack_trace_str, "\tat %s [%s]\n", str, class_location == NULL ? "unknown" : class_location);
+    (*jni_env)->ReleaseStringUTFChars(jni_env, orig_str, str);
+    (*jni_env)->DeleteLocalRef(jni_env, orig_str);
+    return wrote;
+}
+
+
+
+/*
+ * Generates standard Java exception stack trace with file system path to the file
+ */
+static char *generate_exception_stack_trace(
+            jvmtiEnv       *jvmti_env,
+            JNIEnv         *jni_env,
+            jobject         exception)
+{
+    char  *stack_trace_str;
+    /* allocate string which will contain stack trace */
+    stack_trace_str = (char*)calloc(MAX_STACK_TRACE_STRING_LENGTH + 1, sizeof(char));
+    if (stack_trace_str == NULL)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": calloc(): out of memory");
+        return NULL;
+    }
+
+    jclass exception_class = (*jni_env)->GetObjectClass(jni_env, exception);
+    jmethodID to_string_method = (*jni_env)->GetMethodID(jni_env, exception_class, "toString", "()Ljava/lang/String;");
+    if (to_string_method == NULL)
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, exception_class);
+        free(stack_trace_str);
+        return NULL;
+    }
+
+    jobject exception_str = (*jni_env)->CallObjectMethod(jni_env, exception, to_string_method);
+    if ((*jni_env)->ExceptionCheck(jni_env))
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, exception_class);
+        (*jni_env)->ExceptionClear(jni_env);
+        free(stack_trace_str);
+        return NULL;
+    }
+    if (exception_str == NULL)
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, exception_class);
+        free(stack_trace_str);
+        return NULL;
+    }
+
+    char *str = (char*)(*jni_env)->GetStringUTFChars(jni_env, exception_str, NULL);
+    int wrote = sprintf(stack_trace_str, "%s\n", str);
+    (*jni_env)->ReleaseStringUTFChars(jni_env, exception_str, str);
+    (*jni_env)->DeleteLocalRef(jni_env, exception_str);
+
+    jmethodID get_stack_trace_method = (*jni_env)->GetMethodID(jni_env, exception_class, "getStackTrace", "()[Ljava/lang/StackTraceElement;");
+    (*jni_env)->DeleteLocalRef(jni_env, exception_class);
+
+    if (get_stack_trace_method == NULL)
+    {
+        free(stack_trace_str);
+        return NULL;
+    }
+
+    jobject stack_trace_array = (*jni_env)->CallObjectMethod(jni_env, exception, get_stack_trace_method);
+    if ((*jni_env)->ExceptionCheck(jni_env))
+    {
+        (*jni_env)->ExceptionClear(jni_env);
+        free(stack_trace_str);
+        return NULL;
+    }
+    if (stack_trace_array ==  NULL)
+    {
+        free(stack_trace_str);
+        return NULL;
+    }
+
+    jint array_size = (*jni_env)->GetArrayLength(jni_env, stack_trace_array);
+    if (array_size != 0)
+    {
+        for (jint i = 0; i < array_size; ++i)
+        {
+            jobject frame_element = (*jni_env)->GetObjectArrayElement(jni_env, stack_trace_array, i);
+            int frame_wrote = print_stack_trace_element(jvmti_env, jni_env, frame_element, stack_trace_str + wrote);
+            (*jni_env)->DeleteLocalRef(jni_env, frame_element);
+
+            if (frame_wrote < 0)
+            {
+                free(stack_trace_str);
+                stack_trace_str = NULL;
+                break;
+            }
+
+            wrote += frame_wrote;
+        }
+    }
+    else
+    {
+        free(stack_trace_str);
+        stack_trace_str = NULL;
+    }
+
+    (*jni_env)->DeleteLocalRef(jni_env, stack_trace_array);
+
+    return stack_trace_str;
+}
+
+
+/*
+ * Print one method from stack frame.
+ */
 static void print_one_method_from_stack(
             jvmtiEnv       *jvmti_env,
             JNIEnv         *jni_env,
@@ -1258,7 +1433,8 @@ static void JNICALL callback_on_exception(
         log_print("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
         log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
 
-        char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
+        //char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
+        char *stack_trace_str = generate_exception_stack_trace(jvmti_env, jni_env, exception_object);
         if (NULL != stack_trace_str)
         {
             log_print("%s", stack_trace_str);
