@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <linux/limits.h>
 
@@ -719,6 +720,12 @@ static char *get_main_class(
     replace_dots_by_slashes(class_name);
 
     jclass cls = (*jni_env)->FindClass(jni_env, class_name);
+    /* Throws:
+     * ClassFormatError: if the class data does not specify a valid class. 
+     * ClassCircularityError: if a class or interface would be its own superclass or superinterface. 
+     * NoClassDefFoundError: if no definition for a requested class or interface can be found. 
+     * OutOfMemoryError: if the system runs out of memory.
+     */
 
     jthrowable exception;
     exception = (*jni_env)->ExceptionOccurred(jni_env);
@@ -979,6 +986,23 @@ static char* get_path_to_class_class_loader(
 
     /* find ClassLoader class */
     class_loader_class = (*jni_env)->FindClass(jni_env, "java/lang/ClassLoader");
+    /* Throws:
+     * ClassFormatError: if the class data does not specify a valid class. 
+     * ClassCircularityError: if a class or interface would be its own superclass or superinterface. 
+     * NoClassDefFoundError: if no definition for a requested class or interface can be found. 
+     * OutOfMemoryError: if the system runs out of memory.
+     */
+
+    /* check if exception was thrown from FindClass() method */
+    jthrowable exception;
+    exception = (*jni_env)->ExceptionOccurred(jni_env);
+    if (exception)
+    {
+        (*jni_env)->ExceptionClear(jni_env);
+        free(upd_class_name);
+        return NULL;
+    }
+
     if (class_loader_class ==  NULL)
     {
         free(upd_class_name);
@@ -987,6 +1011,20 @@ static char* get_path_to_class_class_loader(
 
     /* find method ClassLoader.getResource() */
     jmethodID get_resource = (*jni_env)->GetMethodID(jni_env, class_loader_class, "getResource", "(Ljava/lang/String;)Ljava/net/URL;" );
+    /* Throws:
+     * NoSuchMethodError: if the specified method cannot be found. 
+     * ExceptionInInitializerError: if the class initializer fails due to an exception. 
+     * OutOfMemoryError: if the system runs out of memory.
+     */
+
+    exception = (*jni_env)->ExceptionOccurred(jni_env);
+    if (exception)
+    {
+        free(upd_class_name);
+        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
+        return NULL;
+    }
+
     if (get_resource ==  NULL)
     {
         free(upd_class_name);
