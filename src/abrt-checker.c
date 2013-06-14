@@ -1076,7 +1076,8 @@ static int print_stack_trace_element(
             jvmtiEnv       *jvmti_env,
             JNIEnv         *jni_env,
             jobject         stack_frame,
-            char           *stack_trace_str)
+            char           *stack_trace_str,
+            unsigned        max_length)
 {
     jclass stack_frame_class = (*jni_env)->GetObjectClass(jni_env, stack_frame);
     jmethodID get_class_name_method = (*jni_env)->GetMethodID(jni_env, stack_frame_class, "getClassName", "()Ljava/lang/String;");
@@ -1110,9 +1111,12 @@ static int print_stack_trace_element(
     else
     {
         char *updated_cls_name_str = create_updated_class_name(cls_name_str);
-        class_location = get_path_to_class(jvmti_env, jni_env, class_of_frame_method, updated_cls_name_str, TO_EXTERNAL_FORM_METHOD_NAME);
+        if (updated_cls_name_str != NULL)
+        {
+            class_location = get_path_to_class(jvmti_env, jni_env, class_of_frame_method, updated_cls_name_str, TO_EXTERNAL_FORM_METHOD_NAME);
+            free(updated_cls_name_str);
+        }
         (*jni_env)->DeleteLocalRef(jni_env, class_of_frame_method);
-        free(updated_cls_name_str);
     }
     (*jni_env)->ReleaseStringUTFChars(jni_env, class_name_of_frame_method, cls_name_str);
 
@@ -1137,7 +1141,14 @@ static int print_stack_trace_element(
     }
 
     char *str = (char*)(*jni_env)->GetStringUTFChars(jni_env, orig_str, NULL);
-    int wrote = sprintf(stack_trace_str, "\tat %s [%s]\n", str, class_location == NULL ? "unknown" : class_location);
+    int wrote = snprintf(stack_trace_str, max_length, "\tat %s [%s]\n", str, class_location == NULL ? "unknown" : class_location);
+    if (wrote > 0 && stack_trace_str[wrote-1] != '\n')
+    {   /* the length limit was reached and frame is printed only partially */
+        /* so in order to not show partial frames clear current frame's data */
+        VERBOSE_PRINT("Too many frames or too long frame. Finishing stack trace generation.");
+        stack_trace_str[0] = '\0';
+        wrote = 0;
+    }
     (*jni_env)->ReleaseStringUTFChars(jni_env, orig_str, str);
     (*jni_env)->DeleteLocalRef(jni_env, orig_str);
     return wrote;
@@ -1187,7 +1198,19 @@ static char *generate_exception_stack_trace(
     }
 
     char *str = (char*)(*jni_env)->GetStringUTFChars(jni_env, exception_str, NULL);
-    int wrote = sprintf(stack_trace_str, "%s\n", str);
+    int wrote = snprintf(stack_trace_str, MAX_STACK_TRACE_STRING_LENGTH, "%s\n", str);
+    if (wrote < 0 )
+    {   /* this should never happen, snprintf() usually works w/o errors */
+        free(stack_trace_str);
+        return NULL;
+    }
+    if (wrote > 0 && stack_trace_str[wrote-1] != '\n')
+    {
+        VERBOSE_PRINT("Too long exception string. Not generating stack trace at all.");
+        free(stack_trace_str);
+        return NULL;
+    }
+
     (*jni_env)->ReleaseStringUTFChars(jni_env, exception_str, str);
     (*jni_env)->DeleteLocalRef(jni_env, exception_str);
 
@@ -1219,13 +1242,18 @@ static char *generate_exception_stack_trace(
         for (jint i = 0; i < array_size; ++i)
         {
             jobject frame_element = (*jni_env)->GetObjectArrayElement(jni_env, stack_trace_array, i);
-            int frame_wrote = print_stack_trace_element(jvmti_env, jni_env, frame_element, stack_trace_str + wrote);
+            const int frame_wrote = print_stack_trace_element(jvmti_env, jni_env, frame_element, stack_trace_str + wrote, MAX_STACK_TRACE_STRING_LENGTH - wrote);
             (*jni_env)->DeleteLocalRef(jni_env, frame_element);
 
             if (frame_wrote < 0)
-            {
+            {   /* this should never happen, snprintf() usually works w/o errors */
                 free(stack_trace_str);
                 stack_trace_str = NULL;
+                break;
+            }
+            if (frame_wrote == 0)
+            {   /* wrote nothing: the length limit was reached and no more */
+                /* frames can be added to the stack trace */
                 break;
             }
 
