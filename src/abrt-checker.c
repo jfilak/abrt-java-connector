@@ -660,9 +660,12 @@ static void replace_dots_by_slashes(char *class_name)
 
 
 
+/*
+ * Appends '.' and returns the result a newly mallocated memory
+ */
 static char * create_updated_class_name(char *class_name)
 {
-    char *upd_class_name = (char*)malloc(strlen(class_name)+1);
+    char *upd_class_name = (char*)malloc(strlen(class_name)+2);
     if (upd_class_name == NULL)
     {
         fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
