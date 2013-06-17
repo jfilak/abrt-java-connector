@@ -177,7 +177,7 @@ _add_test_target(
     DEPENDS ${TEST_JAVA_TARGETS}
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
-_add_test(run_try_finally 0)
+_add_test(run_try_finally 2)
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
 add_custom_target(run_all DEPENDS ${all_run_targets})
