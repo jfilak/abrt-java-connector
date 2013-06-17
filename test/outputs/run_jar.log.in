@@ -1,5 +1,5 @@
 Caught java.lang.ArrayIndexOutOfBoundsException exception in thread "main" in a method SimpleTest.throwIndexOutOfBoundsException() with signature ()V
-Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException
+Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: 42
 	at SimpleTest.throwIndexOutOfBoundsException(SimpleTest.java:24) [jar:file:@CMAKE_BINARY_DIR@/test/JarTest.jar!/SimpleTest.class]
 	at SimpleTest.catchIndexOutOfBoundsException(SimpleTest.java:47) [jar:file:@CMAKE_BINARY_DIR@/test/JarTest.jar!/SimpleTest.class]
 	at SimpleTest.throwAndCatchAllExceptions(SimpleTest.java:61) [jar:file:@CMAKE_BINARY_DIR@/test/JarTest.jar!/SimpleTest.class]
