@@ -1101,6 +1101,7 @@ static int print_stack_trace_element(
     }
 
     char *cls_name_str = (char*)(*jni_env)->GetStringUTFChars(jni_env, class_name_of_frame_method, NULL);
+    replace_dots_by_slashes(cls_name_str);
     jclass class_of_frame_method = (*jni_env)->FindClass(jni_env, cls_name_str);
     char *class_location = NULL;
 
