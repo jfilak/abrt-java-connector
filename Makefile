@@ -45,7 +45,7 @@ rpm: dist
 
 # Make sure the output dir is created
 $(OUT_DIR):
-	mkdir -p $@ && cd $@ && cmake ../
+	mkdir -p $@ && cd $@ && cmake $$CMAKE_OPTS ../
 
 .PHONY: clean
 clean:
