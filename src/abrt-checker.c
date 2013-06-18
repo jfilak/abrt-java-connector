@@ -1083,6 +1083,42 @@ static char* get_path_to_class_class_loader(
 }
 
 
+/*
+ * Wraps java.lang.ClassLoader.getSystemClassLoader()
+ */
+static jobject get_system_class_loader(
+            jvmtiEnv *jvmti_env __UNUSED_VAR,
+            JNIEnv   *jni_env)
+{
+    jclass class_loader_class = (*jni_env)->FindClass(jni_env, "java/lang/ClassLoader");
+    if (NULL == class_loader_class)
+    {
+        VERBOSE_PRINT("Cannot find java/lang/ClassLoader class\n");
+        return NULL;
+    }
+
+    jmethodID get_system_class_loader_smethod =(*jni_env)->GetStaticMethodID(jni_env, class_loader_class, "getSystemClassLoader", "()Ljava/lang/ClassLoader;");
+    jthrowable exception = (*jni_env)->ExceptionOccurred(jni_env);
+    if (NULL != exception)
+    {
+        VERBOSE_PRINT("java.lang.ClassLoader.getSystemClassLoader() thrown an exception\n");
+        (*jni_env)->ExceptionClear(jni_env);
+        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
+        return NULL;
+    }
+    if (NULL == get_system_class_loader_smethod)
+    {
+        VERBOSE_PRINT("Cannot find java.lang.ClassLoader.getSystemClassLoader()Ljava/lang/ClassLoader;\n");
+        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
+        return NULL;
+    }
+
+    jobject system_class_loader = (*jni_env)->CallStaticObjectMethod(jni_env, class_loader_class, get_system_class_loader_smethod);
+
+    (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
+    return system_class_loader;
+}
+
 
 /*
  * Return path to given class.
@@ -1100,12 +1136,17 @@ static char* get_path_to_class(
     /* class is loaded using boot classloader */
     if (class_loader == NULL)
     {
-        return NULL;
+        VERBOSE_PRINT("A class has not been loaded by a ClassLoader. Going to use the system class loader.\n");
+
+        class_loader = get_system_class_loader(jvmti_env, jni_env);
+        if (NULL == class_loader)
+        {
+            VERBOSE_PRINT("Cannot get the system class loader.");
+            return NULL;
+        }
     }
-    else
-    {
-        return get_path_to_class_class_loader(jvmti_env, jni_env, class_loader, class_name, stringize_method_name);
-    }
+
+    return get_path_to_class_class_loader(jvmti_env, jni_env, class_loader, class_name, stringize_method_name);
 }
 
 
