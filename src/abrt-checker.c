@@ -465,7 +465,7 @@ char* format_class_name_for_JNI_call(char *class_signature)
 /*
  * Check if any JVM TI error have occured.
  */
-static void check_jvmti_error(
+static int check_jvmti_error(
             jvmtiEnv   *jvmti_env,
             jvmtiError  error_code,
             const char *str)
@@ -473,7 +473,10 @@ static void check_jvmti_error(
     if ( error_code != JVMTI_ERROR_NONE )
     {
         print_jvmti_error(jvmti_env, error_code, str);
+        return 1;
     }
+
+    return 0;
 }
 
 
@@ -649,12 +652,12 @@ char *get_command(int pid)
 
 
 
-static void replace_dots_by_slashes(char *class_name)
+static void string_replace(char *class_name, char old, char new)
 {
     char *c=class_name;
     for (; *c; c++)
     {
-        if (*c=='.') *c='/';
+        if (*c==old) *c=new;
     }
 }
 
@@ -720,7 +723,7 @@ static char *get_main_class(
     *space = 0;
 
     /* replace all '.' to '/' */
-    replace_dots_by_slashes(class_name);
+    string_replace(class_name, '.', '/');
 
     jclass cls = (*jni_env)->FindClass(jni_env, class_name);
     /* Throws:
@@ -1120,6 +1123,7 @@ static jobject get_system_class_loader(
 }
 
 
+
 /*
  * Return path to given class.
  */
@@ -1147,6 +1151,59 @@ static char* get_path_to_class(
     }
 
     return get_path_to_class_class_loader(jvmti_env, jni_env, class_loader, class_name, stringize_method_name);
+}
+
+
+static jclass find_class_in_loaded_class(
+            jvmtiEnv   *jvmti_env,
+            JNIEnv     *jni_env,
+            const char *searched_class_name)
+{
+    jint num_classes = 0;
+    jclass *loaded_classes;
+    jvmtiError error = (*jvmti_env)->GetLoadedClasses(jvmti_env, &num_classes, &loaded_classes);
+    if (check_jvmti_error(jvmti_env, error, "jvmtiEnv::GetLoadedClasses()"))
+    {
+        return NULL;
+    }
+
+    jclass class_class = (*jni_env)->FindClass(jni_env, "java/lang/Class");
+    if (NULL == class_class)
+    {
+        VERBOSE_PRINT("Cannot find java/lang/Class class");
+        return NULL;
+    }
+
+    jmethodID get_name_method = (*jni_env)->GetMethodID(jni_env, class_class, "getName", "()Ljava/lang/String;");
+    if (NULL == get_name_method)
+    {
+        VERBOSE_PRINT("Cannot find java.lang.Class.getName.()Ljava/lang/String;");
+        (*jni_env)->DeleteLocalRef(jni_env, class_class);
+        return NULL;
+    }
+
+    jclass result = NULL;
+    for (jint i = 0; NULL == result && i < num_classes; ++i)
+    {
+        jobject class_name = (*jni_env)->CallObjectMethod(jni_env, loaded_classes[i], get_name_method);
+        if (NULL == class_name)
+        {
+            continue;
+        }
+
+        char *class_name_cstr = (char*)(*jni_env)->GetStringUTFChars(jni_env, class_name, NULL);
+        if (strcmp(searched_class_name, class_name_cstr) == 0)
+        {
+            VERBOSE_PRINT("The class was found in the array of loaded classes\n");
+            result = loaded_classes[i];
+        }
+
+        (*jni_env)->ReleaseStringUTFChars(jni_env, class_name, class_name_cstr);
+        (*jni_env)->DeleteLocalRef(jni_env, class_name);
+    }
+
+    /* Not calling DeleteLocalRef() on items in loaded_classes. Hopefully they will be deleted automatically */
+    return result;
 }
 
 
@@ -1183,15 +1240,21 @@ static int print_stack_trace_element(
     }
 
     char *cls_name_str = (char*)(*jni_env)->GetStringUTFChars(jni_env, class_name_of_frame_method, NULL);
-    replace_dots_by_slashes(cls_name_str);
+    string_replace(cls_name_str, '.', '/');
     jclass class_of_frame_method = (*jni_env)->FindClass(jni_env, cls_name_str);
     char *class_location = NULL;
 
     if ((*jni_env)->ExceptionOccurred(jni_env))
     {
+        VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": FindClass(%s) thrown an exception\n", cls_name_str);
         (*jni_env)->ExceptionClear(jni_env);
+
+        string_replace(cls_name_str, '/', '.');
+        class_of_frame_method = find_class_in_loaded_class(jvmti_env, jni_env, cls_name_str);
+        string_replace(cls_name_str, '.', '/');
     }
-    else
+
+    if (NULL != class_of_frame_method)
     {
         char *updated_cls_name_str = create_updated_class_name(cls_name_str);
         if (updated_cls_name_str != NULL)
