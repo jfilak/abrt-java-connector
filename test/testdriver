@@ -7,12 +7,15 @@ if [ $EC -ne $2 ]; then
     exit 1
 fi
 
-diff -u $3 $4
+TMP_RESULT=`mktemp /tmp/abrt_java_connector.XXXXXXX`
+sed "s/\(jar:file:\).*\(\/rt.jar!.*\)/\1JAVA_AND_SYSTEM_SPECIFIC_PATH\2/" $4 > $TMP_RESULT
+diff -u $3 $TMP_RESULT
 EC=$?
 
 if [ 0 -ne $EC ]; then
-    echo "Expected $3 differs from result $4"
+    echo "Expected $3 differs from result $TMP_RESULT(origin $4)"
     exit 1
 fi
 
+rm -f $TMP_RESULT
 exit 0
