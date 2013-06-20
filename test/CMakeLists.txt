@@ -49,6 +49,7 @@ _add_class_target(BadClassTest TEST_JAVA_TARGETS)
 _add_class_target(MissingClass TEST_JAVA_TARGETS)
 _add_class_target(MissingClassTest TEST_JAVA_TARGETS MissingClass)
 _add_class_target(TryFinallyTest TEST_JAVA_TARGETS SimpleTest)
+_add_class_target(InnerExceptions TEST_JAVA_TARGETS SimpleTest)
 
 _add_jar_target(JarTest JAR_TEST_PATH SimpleTest)
 set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
@@ -178,6 +179,16 @@ _add_test_target(
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
 )
 _add_test(run_try_finally 2)
+
+
+_add_test_target(
+    run_inner
+    InnerExceptions
+    DEPENDS ${TEST_JAVA_TARGETS}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException
+)
+_add_test(run_inner 2)
+
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
 add_custom_target(run_all DEPENDS ${all_run_targets})
