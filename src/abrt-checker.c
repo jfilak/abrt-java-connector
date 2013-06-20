@@ -93,6 +93,9 @@
 /* A pointer determining that log output is disabled */
 #define DISABLED_LOG_OUTPUT ((void *)-1)
 
+/* The standard stack trace caused by header */
+#define CAUSE_STACK_TRACE_HEADER "Cause by: "
+
 
 
 /*
@@ -1408,12 +1411,59 @@ static char *generate_thread_stack_trace(
         return NULL;
     }
 
-    const int wrote = snprintf(stack_trace_str, MAX_STACK_TRACE_STRING_LENGTH, "Exception in thread \"%s\" ", thread_name);
-    const int exception_wrote = print_exception_stack_trace(jvmti_env, jni_env, exception, stack_trace_str + wrote, MAX_STACK_TRACE_STRING_LENGTH - wrote);
+    int wrote = snprintf(stack_trace_str, MAX_STACK_TRACE_STRING_LENGTH, "Exception in thread \"%s\" ", thread_name);
+    int exception_wrote = print_exception_stack_trace(jvmti_env, jni_env, exception, stack_trace_str + wrote, MAX_STACK_TRACE_STRING_LENGTH - wrote);
     if (exception_wrote <= 0)
     {
         free(stack_trace_str);
         return NULL;
+    }
+
+    wrote += exception_wrote;
+
+    jclass exception_class = (*jni_env)->GetObjectClass(jni_env, exception);
+    if (NULL == exception_class)
+    {
+        VERBOSE_PRINT("Cannot get class of an object\n");
+        return stack_trace_str;
+    }
+
+    jmethodID get_cause_method = (*jni_env)->GetMethodID(jni_env, exception_class, "getCause", "()Ljava/lang/Throwable;");
+    (*jni_env)->DeleteLocalRef(jni_env, exception_class);
+
+    if (NULL == get_cause_method)
+    {
+        VERBOSE_PRINT("Cannot find get an id of getCause()Ljava/lang/Throwable; method\n");
+        return stack_trace_str;
+    }
+
+    jobject cause = (*jni_env)->CallObjectMethod(jni_env, exception, get_cause_method);
+    while(NULL != cause)
+    {
+        if ((size_t)(MAX_STACK_TRACE_STRING_LENGTH - wrote) < (sizeof(CAUSE_STACK_TRACE_HEADER) - 1))
+        {
+            VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": Full exception stack trace buffer. Cannot add a cause.");
+            (*jni_env)->DeleteLocalRef(jni_env, cause);
+            break;
+        }
+
+        strcat(stack_trace_str + wrote, CAUSE_STACK_TRACE_HEADER);
+        wrote += sizeof(CAUSE_STACK_TRACE_HEADER) - 1;
+
+        const int cause_wrote = print_exception_stack_trace(jvmti_env, jni_env, cause, stack_trace_str + wrote, MAX_STACK_TRACE_STRING_LENGTH - wrote);
+
+        if (cause_wrote <= 0)
+        {   /* <  0 : this should never happen, snprintf() usually works w/o errors */
+            /* == 0 : wrote nothing: the length limit was reached and no more */
+            /* cause can be added to the stack trace */
+            break;
+        }
+
+        wrote += cause_wrote;
+
+        jobject next_cause = (*jni_env)->CallObjectMethod(jni_env, cause, get_cause_method);
+        (*jni_env)->DeleteLocalRef(jni_env, cause);
+        cause = next_cause;
     }
 
     return stack_trace_str;
