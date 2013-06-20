@@ -37,18 +37,8 @@
 #include <unistd.h>
 #include <linux/limits.h>
 
-/* Macros used to convert __LINE__ into string */
-#define STRINGIZE_DETAIL(x) #x
-#define STRINGIZE(x) STRINGIZE_DETAIL(x)
-
-#define __UNUSED_VAR __attribute__ ((unused))
-
-#ifdef VERBOSE
-# define VERBOSE_PRINT(...) do { fprintf(stdout, __VA_ARGS__); } while(0)
-#else
-# define VERBOSE_PRINT(...) do { } while (0)
-#endif
-
+/* Shared macros and so on */
+#include "abrt-checker.h"
 
 /* ABRT include file */
 #include "internal_libabrt.h"
@@ -58,6 +48,8 @@
 #include <jvmti.h>
 #include <jvmticmlr.h>
 
+/* Internal tool includes */
+#include "jthrowable_circular_buf.h"
 
 
 
@@ -96,6 +88,10 @@
 /* The standard stack trace caused by header */
 #define CAUSE_STACK_TRACE_HEADER "Cause by: "
 
+/* A number stored reported exceptions */
+#ifndef REPORTED_EXCEPTION_STACK_CAPACITY
+#define  REPORTED_EXCEPTION_STACK_CAPACITY 1
+#endif
 
 
 /*
@@ -170,6 +166,8 @@ char *outputFileName;
 /* Path (not necessary absolute) to output file */
 char **reportedCaughExceptionTypes;
 
+/* Buffer for already reported exceptions to prevent re-reporting */
+T_jthrowableCircularBuf *reportedExceptionBuffer;
 
 /* Define a helper macro*/
 # define log_print(...) do { if(outputFileName != DISABLED_LOG_OUTPUT) fprintf(fout, __VA_ARGS__); } while(0)
@@ -891,6 +889,13 @@ static void JNICALL callback_on_vm_init(
     printf("Got VM init event\n");
     get_thread_name(jvmti_env , thread, tname, sizeof(tname));
     printf("callbackVMInit:  %s thread\n", tname);
+
+    reportedExceptionBuffer = jthrowable_circular_buf_new(jni_env, REPORTED_EXCEPTION_STACK_CAPACITY);
+    if (NULL == reportedExceptionBuffer)
+    {
+        fprintf(stderr, "Cannot enable check for already reported exceptions. Disabling reporting to ABRT!");
+        reportErrosTo &= ~ED_ABRT;
+    }
 
     fill_jvm_environment(jvmti_env);
     fill_process_properties(jvmti_env, jni_env);
@@ -1655,16 +1660,25 @@ static void JNICALL callback_on_exception(
 
     if (catch_method == NULL || exception_is_intended_to_be_reported(updated_exception_name_ptr))
     {
-        log_print("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
-        log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
-
-        //char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
-        char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object);
-        if (NULL != stack_trace_str)
+        if (NULL == jthrowable_circular_buf_find(reportedExceptionBuffer, exception_object))
         {
-            log_print("%s", stack_trace_str);
-            register_abrt_event(processProperties.main_class, (catch_method == NULL ? "Uncaught exception" : "Caught exception"), (unsigned char *)method_name_ptr, stack_trace_str);
-            free(stack_trace_str);
+            jthrowable_circular_buf_push(reportedExceptionBuffer, exception_object);
+
+            log_print("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
+            log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+
+            //char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
+            char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object);
+            if (NULL != stack_trace_str)
+            {
+                log_print("%s", stack_trace_str);
+                register_abrt_event(processProperties.main_class, (catch_method == NULL ? "Uncaught exception" : "Caught exception"), (unsigned char *)method_name_ptr, stack_trace_str);
+                free(stack_trace_str);
+            }
+        }
+        else
+        {
+            VERBOSE_PRINT("The exception was already reported!\n");
         }
     }
 
@@ -2283,6 +2297,8 @@ JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
     {
         fclose(fout);
     }
+
+    jthrowable_circular_buf_free(reportedExceptionBuffer);
 }
 
 

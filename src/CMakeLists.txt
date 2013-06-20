@@ -9,7 +9,7 @@ add_definitions(-D_GNU_SOURCE)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=c99 -pedantic")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -DVERBOSE")
 
-set(AbrtChecker_SRCS abrt-checker.c)
+set(AbrtChecker_SRCS abrt-checker.c jthrowable_circular_buf.c)
 
 add_library(AbrtChecker SHARED ${AbrtChecker_SRCS})
 set_target_properties(
