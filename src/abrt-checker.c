@@ -20,6 +20,7 @@
  * Simple JVMTI Agent demo.
  *
  * Pavel Tisnovsky <ptisnovs@redhat.com>
+ * Jakub Filak     <jfilak@redhat.com>
  *
  * It needs to be compiled as a shared native library (.so)
  * and then loaded into JVM using -agentlib command line parameter.
@@ -60,7 +61,6 @@
 
 
 
-
 /* Basic settings */
 #define VM_MEMORY_ALLOCATION_THRESHOLD 1024
 #define GC_TIME_THRESHOLD 1
@@ -94,7 +94,7 @@
 #define DISABLED_LOG_OUTPUT ((void *)-1)
 
 /* The standard stack trace caused by header */
-#define CAUSE_STACK_TRACE_HEADER "Cause by: "
+#define CAUSED_STACK_TRACE_HEADER "Caused by: "
 
 
 
@@ -265,7 +265,9 @@ static int exception_is_intended_to_be_reported(const char *type_name)
         for (char **cursor = reportedCaughExceptionTypes; *cursor; ++cursor)
         {
             if (strcmp(*cursor, type_name) == 0)
+            {
                 return 1;
+            }
         }
     }
 
@@ -393,8 +395,8 @@ static void print_jvmti_error(
 
 /*
  * Format class signature into a printable form.
- * Class names has form "Ljava/lang/String;"
- * Requested form       "java.lang.String"
+ * Class names have form "Ljava/lang/String;"
+ * Requested form        "java.lang.String"
  */
 char* format_class_name(char *class_signature, char replace_to)
 {
@@ -408,8 +410,8 @@ char* format_class_name(char *class_signature, char replace_to)
         {
             output++; /* goto to the next character */
         }
-        /* replace last character in the class name */
-        /* if this character is ';' */
+        /* replace the last character in the class name */
+        /* but inly if this character is ';' */
         char *last_char = output + strlen(output) - 1;
         if (*last_char == ';')
         {
@@ -433,8 +435,8 @@ char* format_class_name(char *class_signature, char replace_to)
 
 /*
  * Format class signature into a form suitable for ClassLoader.getResource()
- * Class names has form "Ljava/lang/String;"
- * Requested form       "java/lang/String"
+ * Class names have form "Ljava/lang/String;"
+ * Requested form        "java/lang/String"
  */
 char* format_class_name_for_JNI_call(char *class_signature)
 {
@@ -633,7 +635,7 @@ char *get_command(int pid)
 
     /* read first 2047 bytes from this file */
     fin = fopen(file_name, "rb");
-    if (fin == NULL)
+    if (NULL == fin)
     {
         return NULL;
     }
@@ -655,12 +657,15 @@ char *get_command(int pid)
 
 
 
-static void string_replace(char *class_name, char old, char new)
+/*
+ * Replace all old_chars by new_chars
+ */
+static void string_replace(char *string_to_replace, char old_char, char new_char)
 {
-    char *c=class_name;
+    char *c = string_to_replace;
     for (; *c; c++)
     {
-        if (*c==old) *c=new;
+        if (*c==old_char) *c=new_char;
     }
 }
 
@@ -672,7 +677,7 @@ static void string_replace(char *class_name, char old, char new)
 static char * create_updated_class_name(char *class_name)
 {
     char *upd_class_name = (char*)malloc(strlen(class_name)+2);
-    if (upd_class_name == NULL)
+    if (NULL == upd_class_name)
     {
         fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
         return NULL;
@@ -931,7 +936,7 @@ static int get_line_number(
     jvmtiLineNumberEntry *location_table;
     jvmtiError error_code;
 
-    if (method == NULL)
+    if (NULL == method || NULL == location)
     {
         return -1;
     }
@@ -941,6 +946,10 @@ static int get_line_number(
     /* it is possible, that we are unable to read the table -> missing debuginfo etc. */
     if (error_code != JVMTI_ERROR_NONE)
     {
+        if (location_table != NULL)
+        {
+            (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)location_table);
+        }
         return -1;
     }
 
@@ -949,6 +958,11 @@ static int get_line_number(
     {
         jvmtiLineNumberEntry entry1 = location_table[i];
         jvmtiLineNumberEntry entry2 = location_table[i+1];
+        /* well should not happen */
+        if (NULL == entry1 || NULL ==entry2)
+        {
+            continue;
+        }
         /* if location is between entry1 (including) and entry2 (excluding), */
         /* we are on the right line */
         if (location >= entry1.start_location && location < entry2.start_location)
@@ -984,7 +998,7 @@ static char* get_path_to_class_class_loader(
     jclass class_loader_class = NULL;
 
     char *upd_class_name = (char*)malloc(strlen(class_name) + sizeof("class") + 1);
-    if (upd_class_name == NULL)
+    if (NULL == upd_class_name)
     {
         fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
         return NULL;
@@ -1063,9 +1077,23 @@ static char* get_path_to_class_class_loader(
 
     /* find method URL.toString() */
     jmethodID to_external_form = (*jni_env)->GetMethodID(jni_env, (*jni_env)->FindClass(jni_env, "java/net/URL"), stringize_method_name, "()Ljava/lang/String;" );
+    /* Throws:
+     * NoSuchMethodError: if the specified method cannot be found. 
+     * ExceptionInInitializerError: if the class initializer fails due to an exception. 
+     * OutOfMemoryError: if the system runs out of memory.
+     */
+    exception = (*jni_env)->ExceptionOccurred(jni_env);
+    if (exception)
+    {
+        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
+        (*jni_env)->DeleteLocalRef(jni_env, j_class_name);
+        return NULL;
+    }
 
     /* call method URL.toString() */
     jstring jstr = (jstring)(*jni_env)->CallObjectMethod(jni_env, url, to_external_form);
+    /* no exception expected */
+
     if (jstr ==  NULL)
     {
         (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
@@ -1089,6 +1117,7 @@ static char* get_path_to_class_class_loader(
 }
 
 
+
 /*
  * Wraps java.lang.ClassLoader.getSystemClassLoader()
  */
@@ -1107,7 +1136,7 @@ static jobject get_system_class_loader(
     jthrowable exception = (*jni_env)->ExceptionOccurred(jni_env);
     if (NULL != exception)
     {
-        VERBOSE_PRINT("java.lang.ClassLoader.getSystemClassLoader() thrown an exception\n");
+        VERBOSE_PRINT("Exception occured: can not get method java.lang.ClassLoader.getSystemClassLoader()\n");
         (*jni_env)->ExceptionClear(jni_env);
         (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
         return NULL;
@@ -1120,6 +1149,14 @@ static jobject get_system_class_loader(
     }
 
     jobject system_class_loader = (*jni_env)->CallStaticObjectMethod(jni_env, class_loader_class, get_system_class_loader_smethod);
+    exception = (*jni_env)->ExceptionOccurred(jni_env);
+    if (NULL != exception)
+    {
+        VERBOSE_PRINT("java.lang.ClassLoader.getSystemClassLoader() thrown an exception\n");
+        (*jni_env)->ExceptionClear(jni_env);
+        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
+        return NULL;
+    }
 
     (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
     return system_class_loader;
@@ -1438,17 +1475,17 @@ static char *generate_thread_stack_trace(
     }
 
     jobject cause = (*jni_env)->CallObjectMethod(jni_env, exception, get_cause_method);
-    while(NULL != cause)
+    while (NULL != cause)
     {
-        if ((size_t)(MAX_STACK_TRACE_STRING_LENGTH - wrote) < (sizeof(CAUSE_STACK_TRACE_HEADER) - 1))
+        if ((size_t)(MAX_STACK_TRACE_STRING_LENGTH - wrote) < (sizeof(CAUSED_STACK_TRACE_HEADER) - 1))
         {
             VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": Full exception stack trace buffer. Cannot add a cause.");
             (*jni_env)->DeleteLocalRef(jni_env, cause);
             break;
         }
 
-        strcat(stack_trace_str + wrote, CAUSE_STACK_TRACE_HEADER);
-        wrote += sizeof(CAUSE_STACK_TRACE_HEADER) - 1;
+        strcat(stack_trace_str + wrote, CAUSED_STACK_TRACE_HEADER);
+        wrote += sizeof(CAUSED_STACK_TRACE_HEADER) - 1;
 
         const int cause_wrote = print_exception_stack_trace(jvmti_env, jni_env, cause, stack_trace_str + wrote, MAX_STACK_TRACE_STRING_LENGTH - wrote);
 
@@ -1502,7 +1539,8 @@ static void print_one_method_from_stack(
     char *source_file_name;
     if (declaring_class != NULL)
     {
-        (*jvmti_env)->GetSourceFileName(jvmti_env, declaring_class, &source_file_name);
+        error_code = (*jvmti_env)->GetSourceFileName(jvmti_env, declaring_class, &source_file_name);
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
 
     char buf[1000];
