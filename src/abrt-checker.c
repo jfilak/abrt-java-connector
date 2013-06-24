@@ -1026,7 +1026,14 @@ static int get_line_number(
     jvmtiLineNumberEntry *location_table;
     jvmtiError error_code;
 
-    if (NULL == method || NULL == location)
+    /* how can we recognize an illegal value of the location variable.
+     * Documentation says:
+     *   A 64 bit value, representing a monotonically increasing executable
+     *   position within a method. -1 indicates a native method.
+     *
+     * we use 0 for now.
+     */
+    if (NULL == method || 0 == location)
     {
         return -1;
     }
@@ -1048,11 +1055,11 @@ static int get_line_number(
     {
         jvmtiLineNumberEntry entry1 = location_table[i];
         jvmtiLineNumberEntry entry2 = location_table[i+1];
-        /* well should not happen */
-        if (NULL == entry1 || NULL ==entry2)
-        {
-            continue;
-        }
+        /* entry1 and entry2 are copies allocated on the stack:          */
+        /*   how can we recognize that location_table[i] is valid value? */
+        /*                                                               */
+        /* we hope that all array values are valid for now               */
+
         /* if location is between entry1 (including) and entry2 (excluding), */
         /* we are on the right line */
         if (location >= entry1.start_location && location < entry2.start_location)
