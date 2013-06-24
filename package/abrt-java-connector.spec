@@ -46,6 +46,10 @@ rm -rf %{buildroot}/%{_libdir}/lib%{name}.so
 %{_libdir}/lib%{name}.so*
 
 
+%check
+make test
+
+
 %post -p /sbin/ldconfig
 
 
