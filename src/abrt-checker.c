@@ -218,7 +218,7 @@ static void get_pid_as_string(char * buffer)
 {
     int pid = getpid();
     sprintf(buffer, "%d", pid);
-    puts(buffer);
+    INFO_PRINT("%s\n", buffer);
 }
 
 
@@ -230,7 +230,7 @@ static void get_uid_as_string(char * buffer)
 {
     int uid = getuid();
     sprintf(buffer, "%d", uid);
-    puts(buffer);
+    INFO_PRINT("%s\n", buffer);
 }
 
 
@@ -366,7 +366,7 @@ static void register_abrt_event(char * executable, char * message, unsigned char
 
     /* sends problem data to abrtd over the socket */
     int res = problem_data_send_to_abrt(pd);
-    printf("problem data created: '%s'\n", res ? "failure" : "success");
+    fprintf(stderr, "ABRT problem creation: '%s'\n", res ? "failure" : "success");
     problem_data_free(pd);
 }
 
@@ -388,7 +388,7 @@ static void print_jvmti_error(
     /* try to convert error number to string */
     (void)(*jvmti_env)->GetErrorName(jvmti_env, error_code, &errnum_str);
     msg_err = errnum_str == NULL ? "Unknown" : errnum_str;
-    printf("ERROR: JVMTI: %d(%s): %s\n", error_code, msg_err, msg_str);
+    fprintf(stderr, "ERROR: JVMTI: %d(%s): %s\n", error_code, msg_err, msg_str);
 }
 
 
@@ -576,8 +576,8 @@ static void get_thread_name(
         error = ((*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)info.name));
         if (error != JVMTI_ERROR_NONE)
         {
-            printf("(get_thread_name) Error expected: %d, got: %d\n", JVMTI_ERROR_NONE, error);
-            printf("\n");
+            INFO_PRINT("(get_thread_name) Error expected: %d, got: %d\n", JVMTI_ERROR_NONE, error);
+            INFO_PRINT("\n");
         }
     }
 }
@@ -867,10 +867,10 @@ static void fill_jvm_environment(
  */
 static void print_process_properties(void)
 {
-    printf("%-30s: %d\n", "pid", processProperties.pid);
-    printf("%-30s: %s\n", "executable", processProperties.executable);
-    printf("%-30s: %s\n", "exec_command", processProperties.exec_command);
-    printf("%-30s: %s\n", "main_class", processProperties.main_class);
+    INFO_PRINT("%-30s: %d\n", "pid", processProperties.pid);
+    INFO_PRINT("%-30s: %s\n", "executable", processProperties.executable);
+    INFO_PRINT("%-30s: %s\n", "exec_command", processProperties.exec_command);
+    INFO_PRINT("%-30s: %s\n", "main_class", processProperties.main_class);
 }
 
 
@@ -880,7 +880,9 @@ static void print_process_properties(void)
  */
 static void print_jvm_environment_variables(void)
 {
+#ifndef SILENT
     print_jvm_environment_variables_to_file(stdout);
+#endif
 }
 
 static void print_jvm_environment_variables_to_file(FILE *out)
@@ -918,9 +920,9 @@ static void JNICALL callback_on_vm_init(
 
     enter_critical_section(jvmti_env);
 
-    printf("Got VM init event\n");
+    INFO_PRINT("Got VM init event\n");
     get_thread_name(jvmti_env , thread, tname, sizeof(tname));
-    printf("callbackVMInit:  %s thread\n", tname);
+    INFO_PRINT("callbackVMInit:  %s thread\n", tname);
 
     fill_jvm_environment(jvmti_env);
     fill_process_properties(jvmti_env, jni_env);
@@ -941,7 +943,7 @@ static void JNICALL callback_on_vm_death(
             JNIEnv   *env __UNUSED_VAR)
 {
     enter_critical_section(jvmti_env);
-    printf("Got VM Death event\n");
+    INFO_PRINT("Got VM Death event\n");
     exit_critical_section(jvmti_env);
 }
 
@@ -955,7 +957,7 @@ static void JNICALL callback_on_thread_start(
             JNIEnv   *jni_env,
             jthread  thread)
 {
-    printf("ThreadStart\n");
+    INFO_PRINT("ThreadStart\n");
     if (NULL == threadMap)
     {
         return;
@@ -989,7 +991,7 @@ static void JNICALL callback_on_thread_end(
             JNIEnv   *jni_env,
             jthread  thread)
 {
-    printf("ThreadEnd\n");
+    INFO_PRINT("ThreadEnd\n");
     if (NULL == threadMap)
     {
         return;
@@ -1011,7 +1013,7 @@ static void JNICALL callback_on_thread_end(
 }
 
 
-
+#ifdef GENERATE_JVMTI_STACK_TRACE
 /*
  * Get line number for given method and location in this method.
  */
@@ -1079,6 +1081,7 @@ static int get_line_number(
     (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)location_table);
     return line_number;
 }
+#endif /* GENERATE_JVMTI_STACK_TRACE */
 
 
 
@@ -1603,6 +1606,7 @@ static char *generate_thread_stack_trace(
     return stack_trace_str;
 }
 
+#ifdef GENERATE_JVMTI_STACK_TRACE
 /*
  * Print one method from stack frame.
  */
@@ -1679,9 +1683,10 @@ static void print_one_method_from_stack(
         check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
 }
+#endif /* GENERATE_JVMTI_STACK_TRACE */
 
 
-
+#ifdef GENERATE_JVMTI_STACK_TRACE
 /*
  * Print stack trace for given thread.
  */
@@ -1739,6 +1744,7 @@ static char *generate_stack_trace(
 
     return stack_trace_str;
 }
+#endif /* GENERATE_JVMTI_STACK_TRACE */
 
 
 
@@ -1785,8 +1791,8 @@ static void JNICALL callback_on_exception(
     class_name_ptr = format_class_name(class_signature_ptr, '.');
     updated_exception_name_ptr = format_class_name(exception_name_ptr, '\0');
 
-    printf("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
-    printf("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+    INFO_PRINT("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
+    INFO_PRINT("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
 
     if (catch_method == NULL || exception_is_intended_to_be_reported(updated_exception_name_ptr))
     {
@@ -1933,7 +1939,7 @@ static void JNICALL callback_on_object_alloc(
 
     if (size >= VM_MEMORY_ALLOCATION_THRESHOLD)
     {
-        printf("object allocation: instance of class %s, allocated %ld bytes\n", signature_ptr, (long int)size);
+        INFO_PRINT("object allocation: instance of class %s, allocated %ld bytes\n", signature_ptr, (long int)size);
     }
     (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)signature_ptr);
     exit_critical_section(jvmti_env);
@@ -1978,13 +1984,13 @@ static void JNICALL callback_on_gc_finish(
     clock_t gc_end_time = clock();
     int diff;
     enter_critical_section(jvmti_env);
-    VERBOSE_PRINT("GC end\n");
+    INFO_PRINT("GC end\n");
     diff = (gc_end_time - (gc_start_time))/CLOCKS_PER_SEC;
     if (diff > GC_TIME_THRESHOLD)
     {
         char str[100];
         sprintf(str, "GC took more time than expected: %d\n", diff);
-        puts(str);
+        INFO_PRINT("%s\n", str);
         register_abrt_event(processProperties.main_class, str, (unsigned char *)"GC thread", "no stack trace");
     }
     exit_critical_section(jvmti_env);
@@ -1998,7 +2004,7 @@ static void JNICALL callback_on_gc_finish(
 static void JNICALL callback_on_compiled_method_load(
             jvmtiEnv   *jvmti_env,
             jmethodID   method,
-            jint        code_size,
+            jint        code_size __UNUSED_VAR,
             const void *code_addr __UNUSED_VAR,
             jint        map_length __UNUSED_VAR,
             const jvmtiAddrLocationMap* map __UNUSED_VAR,
@@ -2020,7 +2026,7 @@ static void JNICALL callback_on_compiled_method_load(
     check_jvmti_error(jvmti_env, error_code, "get method declaring class");
     (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature, NULL);
 
-    printf("Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
+    INFO_PRINT("Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
         class_signature == NULL ? "" : class_signature,
         name, signature,
         generic_ptr == NULL ? "" : generic_ptr, (int)code_size);
@@ -2237,8 +2243,9 @@ jvmtiError create_raw_monitor(jvmtiEnv *jvmti_env)
 /*
  * Print major, minor and micro version of JVM TI.
  */
-jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env)
+jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env __UNUSED_VAR)
 {
+#ifndef SILENT
     jvmtiError error_code;
 
     jint version;
@@ -2252,6 +2259,9 @@ jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env)
     printf("Compile Time JVMTI Version: %d.%d.%d (0x%08x)\n", cmajor, cminor, cmicro, version);
 
     return error_code;
+#else
+    return 0;
+#endif
 }
 
 
@@ -2389,7 +2399,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     jvmtiError error_code = JVMTI_ERROR_NONE;
     jint       result;
 
-    printf("Agent_OnLoad\n");
+    INFO_PRINT("Agent_OnLoad\n");
     VERBOSE_PRINT("VERBOSE OUTPUT ENABLED\n");
     parse_commandline_options(options);
 
@@ -2397,12 +2407,12 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     result = (*jvm)->GetEnv(jvm, (void **) &jvmti_env, JVMTI_VERSION_1_0);
     if (result != JNI_OK || jvmti_env == NULL)
     {
-        printf("ERROR: Unable to access JVMTI Version 1 (0x%x),"
+        fprintf(stderr, "ERROR: Unable to access JVMTI Version 1 (0x%x),"
                 " is your J2SE a 1.5 or newer version? JNIEnv's GetEnv() returned %d which is wrong.\n",
                 JVMTI_VERSION_1, (int)result);
         return result;
     }
-    puts("JVM TI version is correct");
+    INFO_PRINT("JVM TI version is correct\n");
 
     print_jvmti_version(jvmti_env);
 
@@ -2461,7 +2471,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
  */
 JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
 {
-    printf("Agent_OnUnLoad\n");
+    INFO_PRINT("Agent_OnUnLoad\n");
     if (outputFileName != DISABLED_LOG_OUTPUT)
     {
         free(outputFileName);

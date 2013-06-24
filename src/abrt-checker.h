@@ -13,6 +13,12 @@
 # define VERBOSE_PRINT(...) do { } while (0)
 #endif // VERBOSE
 
+#ifdef SILENT
+# define INFO_PRINT(...) do { } while (0)
+#else // !SILENT
+# define INFO_PRINT(...) do { fprintf(stdout, __VA_ARGS__); } while(0)
+#endif // SILENT
+
 #endif // __ABRT_CHECKER__
 
 

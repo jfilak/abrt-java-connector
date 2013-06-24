@@ -142,13 +142,13 @@ void jthrowable_circular_buf_push(T_jthrowableCircularBuf *buffer, jthrowable ex
         if (new_end == buffer->begin)
         {
             (*buffer->jni_env)->DeleteGlobalRef(buffer->jni_env, buffer->mem[buffer->begin]);
-            printf("Replacing %p\n", (void *)buffer->mem[buffer->begin]);
+            VERBOSE_PRINT("Replacing %p\n", (void *)buffer->mem[buffer->begin]);
             buffer->begin = jthrowable_circular_buf_get_index(buffer, buffer->begin + 1);
         }
     }
 
     buffer->mem[new_end] = (*buffer->jni_env)->NewGlobalRef(buffer->jni_env, exception);
-    printf("Pushed %p\n", (void *)buffer->mem[new_end]);
+    VERBOSE_PRINT("Pushed %p\n", (void *)buffer->mem[new_end]);
     buffer->end = new_end;
 }
 

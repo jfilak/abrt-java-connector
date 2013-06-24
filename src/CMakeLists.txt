@@ -8,6 +8,7 @@ include_directories(${PC_ABRT_INCLUDE_DIRS})
 add_definitions(-D_GNU_SOURCE)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=c99 -pedantic")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -DVERBOSE")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DSILENT")
 
 set(AbrtChecker_SRCS abrt-checker.c jthrowable_circular_buf.c jthread_map.c)
 
