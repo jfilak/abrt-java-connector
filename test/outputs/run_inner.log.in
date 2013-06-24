@@ -9,7 +9,7 @@ Uncaught java.lang.RuntimeException exception in thread "main" in a method Inner
 Exception in thread "main" java.lang.RuntimeException: java.lang.NullPointerException
 	at InnerExceptions.run(InnerExceptions.java:17) [file:@CMAKE_BINARY_DIR@/test/InnerExceptions.class]
 	at InnerExceptions.main(InnerExceptions.java:28) [file:@CMAKE_BINARY_DIR@/test/InnerExceptions.class]
-Cause by: java.lang.NullPointerException
+Caused by: java.lang.NullPointerException
 	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.throwAndDontCatchException(SimpleTest.java:71) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at InnerExceptions.run(InnerExceptions.java:13) [file:@CMAKE_BINARY_DIR@/test/InnerExceptions.class]
