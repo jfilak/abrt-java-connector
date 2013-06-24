@@ -16,8 +16,7 @@ add_library(AbrtChecker SHARED ${AbrtChecker_SRCS})
 set_target_properties(
     AbrtChecker
     PROPERTIES
-        OUTPUT_NAME abrt-java-connector
-        SOVERSION 0)
+        OUTPUT_NAME abrt-java-connector)
 
 target_link_libraries(AbrtChecker ${PC_ABRT_LIBRARIES})
 
