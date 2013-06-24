@@ -38,18 +38,8 @@
 #include <unistd.h>
 #include <linux/limits.h>
 
-/* Macros used to convert __LINE__ into string */
-#define STRINGIZE_DETAIL(x) #x
-#define STRINGIZE(x) STRINGIZE_DETAIL(x)
-
-#define __UNUSED_VAR __attribute__ ((unused))
-
-#ifdef VERBOSE
-# define VERBOSE_PRINT(...) do { fprintf(stdout, __VA_ARGS__); } while(0)
-#else
-# define VERBOSE_PRINT(...) do { } while (0)
-#endif
-
+/* Shared macros and so on */
+#include "abrt-checker.h"
 
 /* ABRT include file */
 #include "internal_libabrt.h"
@@ -59,6 +49,9 @@
 #include <jvmti.h>
 #include <jvmticmlr.h>
 
+/* Internal tool includes */
+#include "jthread_map.h"
+#include "jthrowable_circular_buf.h"
 
 
 /* Basic settings */
@@ -96,6 +89,10 @@
 /* The standard stack trace caused by header */
 #define CAUSED_STACK_TRACE_HEADER "Caused by: "
 
+/* A number stored reported exceptions */
+#ifndef REPORTED_EXCEPTION_STACK_CAPACITY
+#define  REPORTED_EXCEPTION_STACK_CAPACITY 5
+#endif
 
 
 /*
@@ -170,6 +167,8 @@ char *outputFileName;
 /* Path (not necessary absolute) to output file */
 char **reportedCaughExceptionTypes;
 
+/* Map of buffer for already reported exceptions to prevent re-reporting */
+T_jthreadMap *threadMap;
 
 /* Define a helper macro*/
 # define log_print(...) do { if(outputFileName != DISABLED_LOG_OUTPUT) fprintf(fout, __VA_ARGS__); } while(0)
@@ -179,6 +178,7 @@ char **reportedCaughExceptionTypes;
 /* forward headers */
 static char* get_path_to_class(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jclass class, char *class_name, const char *stringize_method_name);
 static void print_jvm_environment_variables_to_file(FILE *out);
+static char* format_class_name(char *class_signature, char replace_to);
 
 
 
@@ -392,13 +392,38 @@ static void print_jvmti_error(
 }
 
 
+static int get_tid(
+        JNIEnv   *jni_env,
+        jthread  thr,
+        jlong    *tid)
+{
+    jclass thread_class = (*jni_env)->GetObjectClass(jni_env, thr);
+    if (NULL == thread_class)
+    {
+        VERBOSE_PRINT("Cannot get class of thread object\n");
+        return 1;
+    }
+
+    jmethodID get_id = (*jni_env)->GetMethodID(jni_env, thread_class, "getId", "()J" );
+    if (NULL == get_id)
+    {
+        VERBOSE_PRINT("Cannot method java.lang.Thread.getId()J\n");
+        return 1;
+    }
+
+    *tid = (*jni_env)->CallLongMethod(jni_env, thr, get_id);
+
+    return 0;
+}
+
+
 
 /*
  * Format class signature into a printable form.
  * Class names have form "Ljava/lang/String;"
  * Requested form        "java.lang.String"
  */
-char* format_class_name(char *class_signature, char replace_to)
+static char* format_class_name(char *class_signature, char replace_to)
 {
     char *output;
     /* make sure we don't end with NPE */
@@ -918,6 +943,71 @@ static void JNICALL callback_on_vm_death(
     enter_critical_section(jvmti_env);
     printf("Got VM Death event\n");
     exit_critical_section(jvmti_env);
+}
+
+
+
+/*
+ * Called before thread end.
+ */
+static void JNICALL callback_on_thread_start(
+            jvmtiEnv *jvmti_env __UNUSED_VAR,
+            JNIEnv   *jni_env,
+            jthread  thread)
+{
+    printf("ThreadStart\n");
+    if (NULL == threadMap)
+    {
+        return;
+    }
+
+    jlong tid = 0;
+
+    if (get_tid(jni_env, thread, &tid))
+    {
+        VERBOSE_PRINT("Cannot malloc thread's exception buffer because cannot get TID");
+        return;
+    }
+
+    T_jthrowableCircularBuf *threads_exc_buf = jthrowable_circular_buf_new(jni_env, REPORTED_EXCEPTION_STACK_CAPACITY);
+    if (NULL == threads_exc_buf)
+    {
+        fprintf(stderr, "Cannot enable check for already reported exceptions. Disabling reporting to ABRT in current thread!");
+        return;
+    }
+
+    jthread_map_push(threadMap, tid, threads_exc_buf);
+}
+
+
+
+/*
+ * Called before thread end.
+ */
+static void JNICALL callback_on_thread_end(
+            jvmtiEnv *jvmti_env __UNUSED_VAR,
+            JNIEnv   *jni_env,
+            jthread  thread)
+{
+    printf("ThreadEnd\n");
+    if (NULL == threadMap)
+    {
+        return;
+    }
+
+    jlong tid = 0;
+
+    if (get_tid(jni_env, thread, &tid))
+    {
+        VERBOSE_PRINT("Cannot free thread's exception buffer because cannot get TID");
+        return;
+    }
+
+    T_jthrowableCircularBuf *threads_exc_buf = jthread_map_pop(threadMap, tid);
+    if (threads_exc_buf != NULL)
+    {
+        jthrowable_circular_buf_free(threads_exc_buf);
+    }
 }
 
 
@@ -1693,16 +1783,45 @@ static void JNICALL callback_on_exception(
 
     if (catch_method == NULL || exception_is_intended_to_be_reported(updated_exception_name_ptr))
     {
-        log_print("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
-        log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+        jlong tid = 0;
+        T_jthrowableCircularBuf *threads_exc_buf = NULL;
 
-        //char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
-        char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object);
-        if (NULL != stack_trace_str)
+        if (NULL != threadMap && 0 == get_tid(jni_env, thr, &tid))
         {
-            log_print("%s", stack_trace_str);
-            register_abrt_event(processProperties.main_class, (catch_method == NULL ? "Uncaught exception" : "Caught exception"), (unsigned char *)method_name_ptr, stack_trace_str);
-            free(stack_trace_str);
+            threads_exc_buf = jthread_map_get(threadMap, tid);
+            VERBOSE_PRINT("Got circular buffer for thread %p\n", (void *)threads_exc_buf);
+        }
+        else
+        {
+            VERBOSE_PRINT("Cannot get thread's ID. Disabling reporting to ABRT.");
+        }
+
+        if (NULL == threads_exc_buf || NULL == jthrowable_circular_buf_find(threads_exc_buf, exception_object))
+        {
+            if (NULL != threads_exc_buf)
+            {
+                VERBOSE_PRINT("Pushing to circular buffer\n");
+                jthrowable_circular_buf_push(threads_exc_buf, exception_object);
+            }
+
+            log_print("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
+            log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+
+            //char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
+            char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object);
+            if (NULL != stack_trace_str)
+            {
+                log_print("%s", stack_trace_str);
+                if (NULL != threads_exc_buf)
+                {
+                    register_abrt_event(processProperties.main_class, (catch_method == NULL ? "Uncaught exception" : "Caught exception"), (unsigned char *)method_name_ptr, stack_trace_str);
+                }
+                free(stack_trace_str);
+            }
+        }
+        else
+        {
+            VERBOSE_PRINT("The exception was already reported!\n");
         }
     }
 
@@ -1738,7 +1857,7 @@ static void JNICALL callback_on_exception(
  */
 static void JNICALL callback_on_exception_catch(
             jvmtiEnv *jvmti_env,
-            JNIEnv   *env __UNUSED_VAR,
+            JNIEnv   *jni_env __UNUSED_VAR,
             jthread   thr __UNUSED_VAR,
             jmethodID method,
             jlocation location __UNUSED_VAR,
@@ -1938,6 +2057,8 @@ jvmtiError set_capabilities(jvmtiEnv *jvmti_env)
     capabilities.can_signal_thread = 1;
     capabilities.can_get_owned_monitor_info = 1;
     capabilities.can_generate_method_entry_events = 1;
+    capabilities.can_generate_method_exit_events = 1;
+    capabilities.can_generate_frame_pop_events = 1;
     capabilities.can_generate_exception_events = 1;
     capabilities.can_generate_vm_object_alloc_events = 1;
     capabilities.can_generate_object_free_events = 1;
@@ -1970,6 +2091,12 @@ jvmtiError register_all_callback_functions(jvmtiEnv *jvmti_env)
 
     /* JVMTI_EVENT_VM_DEATH */
     callbacks.VMDeath = &callback_on_vm_death;
+
+    /* JVMTI_EVENT_THREAD_START */
+    callbacks.ThreadStart = &callback_on_thread_start;
+
+    /* JVMTI_EVENT_THREAD_END */
+    callbacks.ThreadEnd = &callback_on_thread_end;
 
     /* JVMTI_EVENT_EXCEPTION */
     callbacks.Exception = &callback_on_exception;
@@ -2026,6 +2153,16 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
     }
 
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_VM_DEATH)) != JNI_OK)
+    {
+        return error_code;
+    }
+
+    if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_THREAD_START)) != JNI_OK)
+    {
+        return error_code;
+    }
+
+    if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_THREAD_END)) != JNI_OK)
     {
         return error_code;
     }
@@ -2246,6 +2383,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     jint       result;
 
     printf("Agent_OnLoad\n");
+    VERBOSE_PRINT("VERBOSE OUTPUT ENABLED\n");
     parse_commandline_options(options);
 
     /* check if JVM TI version is correct */
@@ -2299,6 +2437,13 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
         }
     }
 
+    threadMap = jthread_map_new();
+    if (NULL == threadMap)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can not create a set of reported exceptions\n");
+        return -1;
+    }
+
     return JNI_OK;
 }
 
@@ -2321,6 +2466,8 @@ JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
     {
         fclose(fout);
     }
+
+    jthread_map_free(threadMap);
 }
 
 

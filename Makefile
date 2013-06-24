@@ -22,6 +22,9 @@ all: run
 build: $(OUT_DIR)
 	cd $(OUT_DIR) && make
 
+builddebug:
+	$(MAKE) distclean build CMAKE_OPTS="-DCMAKE_BUILD_TYPE=Debug"
+
 .PHONY: run
 run: build
 	cd $(OUT_DIR) && make run
