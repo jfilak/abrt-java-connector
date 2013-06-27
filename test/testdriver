@@ -8,7 +8,15 @@ if [ $EC -ne $2 ]; then
 fi
 
 TMP_RESULT=`mktemp /tmp/abrt_java_connector.XXXXXXX`
-sed "s/\(jar:file:\).*\(\/rt.jar!.*\)/\1JAVA_AND_SYSTEM_SPECIFIC_PATH\2/" $4 > $TMP_RESULT
+JAVA_RTLIB_PATH=`sed -n "s/^.*\(jar:file:\)\(.*\)\(\/rt.jar\!.*\).*$/\2/p" $4 | head -1`
+
+if [ -n "$JAVA_RTLIB_PATH" ]; then
+    sed "s,"$JAVA_RTLIB_PATH",JAVA_AND_SYSTEM_SPECIFIC_PATH," $4 > $TMP_RESULT
+else
+    rm -f $TMP_RESULT
+    TMP_RESULT=$4
+fi
+
 diff -u $3 $TMP_RESULT
 EC=$?
 

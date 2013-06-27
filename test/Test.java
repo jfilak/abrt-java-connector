@@ -1,6 +1,10 @@
 import java.io.*;
 import java.net.*;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+
 
 
 /**
@@ -200,8 +204,35 @@ public class Test {
      * Attempt to read content located by an URL in case the content does not exists.
      */
     public static void readFromURL() {
+        HttpServer server = null;
         try {
-            URL url = new URL("http://torment.usersys.redhat.com/openjdk/_this_does_not_exists_");
+            server = HttpServer.create(new InetSocketAddress(54321), 0);
+        }
+        catch (IOException e) {
+            System.out.println("Cannot create testing HTTP server -> readFromURL test disabled.");
+            e.printStackTrace();
+            return;
+        }
+
+        server.createContext("/", new HttpHandler() {
+            public void handle(HttpExchange t) {
+                try {
+                    String response = "Welcome Real's HowTo test page";
+                    t.sendResponseHeaders(HttpURLConnection.HTTP_NOT_FOUND, 0);
+                    t.getResponseBody().write(response.getBytes());
+                    t.close();
+                }
+                catch (IOException e) {
+                    System.out.println("Cannot set 404 response header");
+                    e.printStackTrace();
+                }
+            }
+        });
+        server.setExecutor(null); // creates a default executor
+        server.start();
+
+        try {
+            URL url = new URL("http://localhost:54321/_this_does_not_exists_");
             try {
                 BufferedReader in = new BufferedReader(
                     new InputStreamReader(url.openStream()));
@@ -217,6 +248,9 @@ public class Test {
         }
         catch (MalformedURLException e) {
             e.printStackTrace();
+        }
+        finally {
+            server.stop(0);
         }
     }
 

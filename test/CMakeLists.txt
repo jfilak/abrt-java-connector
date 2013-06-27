@@ -121,7 +121,7 @@ _add_test_target(
     run_test
     Test
     DEPENDS ${TEST_JAVA_TARGETS}
-    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException:java.lang.UnsatisfiedLinkError:java.lang.ClassCastException:java.lang.StringIndexOutOfBoundsException:java.net.MalformedURLException:java.net.ConnectException:java.net.UnknownHostException:java.lang.NumberFormatException
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException:java.lang.UnsatisfiedLinkError:java.lang.ClassCastException:java.lang.StringIndexOutOfBoundsException:java.net.MalformedURLException:java.net.ConnectException:java.net.UnknownHostException:java.lang.NumberFormatException:java.io.FileNotFoundException
 )
 _add_test(run_test 2)
 
