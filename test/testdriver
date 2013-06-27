@@ -12,6 +12,7 @@ JAVA_RTLIB_PATH=`sed -n "s/^.*\(jar:file:\)\(.*\)\(\/rt.jar\!.*\).*$/\2/p" $4 | 
 
 if [ -n "$JAVA_RTLIB_PATH" ]; then
     sed "s,"$JAVA_RTLIB_PATH",JAVA_AND_SYSTEM_SPECIFIC_PATH," $4 > $TMP_RESULT
+    sed -i "s/\(\.java:\)[0-9]\+\() \[.*JAVA_AND_SYSTEM_SPECIFIC_PATH\)/\1LINENO\2/" $TMP_RESULT
 else
     rm -f $TMP_RESULT
     TMP_RESULT=$4
