@@ -106,7 +106,7 @@ function(_add_test_target target_name)
 endfunction()
 
 function(_add_test target_name expected_exit_code)
-    add_test(test_${target_name} /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/testdriver ${target_name} ${expected_exit_code} ${CMAKE_CURRENT_BINARY_DIR}/outputs/${target_name}.log ${CMAKE_CURRENT_BINARY_DIR}/${target_name}.log)
+    add_test(test_${target_name} /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/testdriver ${target_name} ${expected_exit_code} ${CMAKE_CURRENT_BINARY_DIR}/outputs/${target_name}.log ${CMAKE_CURRENT_BINARY_DIR}/${target_name}.log ${ARGN})
 endfunction()
 
 _add_test_target(
@@ -123,7 +123,7 @@ _add_test_target(
     DEPENDS ${TEST_JAVA_TARGETS}
     AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException:java.lang.UnsatisfiedLinkError:java.lang.ClassCastException:java.lang.StringIndexOutOfBoundsException:java.net.MalformedURLException:java.net.ConnectException:java.net.UnknownHostException:java.lang.NumberFormatException:java.io.FileNotFoundException
 )
-_add_test(run_test 2)
+_add_test(run_test 2 1)
 
 _add_test_target(
     run_package

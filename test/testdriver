@@ -1,4 +1,12 @@
 #!/bin/sh
+# Help:
+#   $1 - make target
+#   $2 - number: expected make exit code
+#   $3 - path: expected make target log file
+#   $4 - path: test make target log file
+#   $5 - 1/0 - [Optional]: 1 == diff only exceptions from main()
+#
+
 make $1
 EC=$?
 
@@ -8,14 +16,22 @@ if [ $EC -ne $2 ]; then
 fi
 
 TMP_RESULT=`mktemp /tmp/abrt_java_connector.XXXXXXX`
-JAVA_RTLIB_PATH=`sed -n "s/^.*\(jar:file:\)\(.*\)\(\/rt.jar\!.*\).*$/\2/p" $4 | head -1`
+
+if [ 1 -eq "$5" ]; then
+    tac $4 | awk \
+'BEGIN             { main = 0 }
+/^(Unc|C)aught/    { if (main == 1) { print $0; main = 0 } }
+                   { if (main == 1) { print $0 } }
+/\s*at .*\.main\(/ { if (main == 0) { print $0; main = 1 } }' | tac > $TMP_RESULT
+else
+    cp $4 $TMP_RESULT
+fi
+
+JAVA_RTLIB_PATH=`sed -n "s/^.*\(jar:file:\)\(.*\)\(\/rt.jar\!.*\).*$/\2/p" $TMP_RESULT | head -1`
 
 if [ -n "$JAVA_RTLIB_PATH" ]; then
-    sed "s,"$JAVA_RTLIB_PATH",JAVA_AND_SYSTEM_SPECIFIC_PATH," $4 > $TMP_RESULT
+    sed -i "s,"$JAVA_RTLIB_PATH",JAVA_AND_SYSTEM_SPECIFIC_PATH," $TMP_RESULT
     sed -i "s/\(\.java:\)[0-9]\+\() \[.*JAVA_AND_SYSTEM_SPECIFIC_PATH\)/\1LINENO\2/" $TMP_RESULT
-else
-    rm -f $TMP_RESULT
-    TMP_RESULT=$4
 fi
 
 diff -u $3 $TMP_RESULT
