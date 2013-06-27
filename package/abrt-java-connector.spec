@@ -34,16 +34,17 @@ make %{?_smp_mflags}
 %install
 make install DESTDIR=%{buildroot}
 
-# Remove .so which should be placed in devel package
-rm -rf %{buildroot}/%{_libdir}/lib%{name}.so
-
 
 %files
 %doc LICENSE README AUTHORS
 %config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_format_java.conf
 %config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_formatdup_java.conf
 %config(noreplace) %{_sysconfdir}/libreport/events.d/java_event.conf
-%{_libdir}/lib%{name}.so*
+
+# install only unversioned shared object because the package is a Java plugin
+# and not a system library but unfortunately the library must be placed in ld
+# library paths
+%{_libdir}/lib%{name}.so
 
 
 %check
