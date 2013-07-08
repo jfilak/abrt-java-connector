@@ -1,8 +1,8 @@
-%global commit 239a2a669df420a40968f8c6f3290e9b4994251f
+%global commit 6f229409b19a14cdf0d93c4668f2136517a6da62
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 Name:		abrt-java-connector
-Version:	1.0.0
+Version:	1.0.1
 Release:	1%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
@@ -59,6 +59,9 @@ make test
 
 
 %changelog
+* Mon Jul 08 2013 Jakub Filak <jfilak@redhat.com> - 1.0.1-1
+- Fix tests on ppc and s390 on both 32 and 64 bit
+
 * Thu Jun 27 2013 Jakub Filak <jfilak@redhat.com> - 1.0.0-1
 - Publicly releasable version
 
