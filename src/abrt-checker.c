@@ -2331,6 +2331,11 @@ static char **build_string_vector(const char *separated_list, char separator)
  */
 void parse_commandline_options(char *options)
 {
+    if (NULL == options)
+    {
+        return;
+    }
+
     char *savedptr_key = NULL;
     for (char *key = options; /*break inside*/; options=NULL)
     {
