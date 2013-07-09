@@ -51,6 +51,7 @@ _add_class_target(MissingClassTest TEST_JAVA_TARGETS MissingClass)
 _add_class_target(TryFinallyTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(InnerExceptions TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(OverridenEqualExceptionTest TEST_JAVA_TARGETS)
+_add_class_target(NoException TEST_JAVA_TARGETS)
 
 _add_jar_target(JarTest JAR_TEST_PATH SimpleTest)
 set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
@@ -197,6 +198,14 @@ _add_test_target(
     AGENT_OPTIONS caught=MaliciousEqualsException
 )
 #_add_test(run_overriden_eqauls 2)
+
+add_custom_target(
+    run_empty_command_line_options
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME} NoException
+    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_test(test_empty_command_line_options make run_empty_command_line_options)
 
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
