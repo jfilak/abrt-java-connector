@@ -207,6 +207,14 @@ add_custom_target(
 )
 add_test(test_empty_command_line_options make run_empty_command_line_options)
 
+add_custom_target(
+    run_no_log_file
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=output=no_file.log NoException && test ! -e no_file.log
+    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_test(test_no_log_file make run_no_log_file)
+
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
 add_custom_target(run_all DEPENDS ${all_run_targets})
