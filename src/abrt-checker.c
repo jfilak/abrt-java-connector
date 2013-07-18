@@ -142,7 +142,6 @@ typedef enum {
     ED_ABRT     = ED_TERMINAL << 1, ///< Submit error reports to ABRT
 } T_errorDestination;
 
-
 /* Global monitor lock */
 jrawMonitorID lock;
 
@@ -169,10 +168,6 @@ char **reportedCaughExceptionTypes;
 
 /* Map of buffer for already reported exceptions to prevent re-reporting */
 T_jthreadMap *threadMap;
-
-/* Define a helper macro*/
-# define log_print(...) do { if(outputFileName != DISABLED_LOG_OUTPUT) fprintf(fout, __VA_ARGS__); } while(0)
-
 
 
 /* forward headers */
@@ -207,6 +202,54 @@ static const char *get_default_log_file_name()
     }
 #undef _AUX_LOG_FILE_NAME_MAX_LENGTH
     return log_file_name;
+}
+
+
+
+/*
+ * Gets the log file
+ */
+static FILE *get_log_file()
+{
+    /* Log file */
+
+    if (NULL == fout
+        && DISABLED_LOG_OUTPUT != outputFileName)
+    {
+        /* try to open output log file */
+        const char *fn = (outputFileName != NULL ? outputFileName : get_default_log_file_name());
+        VERBOSE_PRINT("Path to the log file: %s\n", fn);
+        fout = fopen(fn, "wt");
+        if (NULL == fout)
+        {
+            free(outputFileName);
+            outputFileName = DISABLED_LOG_OUTPUT;
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can not create output file %s. Disabling logging.\n", fn);
+        }
+    }
+
+    return fout;
+}
+
+
+
+/*
+ * Define a helper macro
+ */
+static int log_print(const char *fmt, ...)
+{
+    FILE *flog = get_log_file();
+    int ret = 0;
+
+    if(NULL != flog)
+    {
+        va_list ap;
+        va_start(ap, fmt);
+        ret = vfprintf(flog, fmt, ap);
+        va_end(ap);
+    }
+
+    return ret;
 }
 
 
@@ -2443,20 +2486,6 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     if ((error_code = create_raw_monitor(jvmti_env)) != JNI_OK)
     {
         return error_code;
-    }
-
-    /* if output log file is not disabled */
-    if (outputFileName != DISABLED_LOG_OUTPUT)
-    {
-        /* open output log file */
-        const char *fn = (outputFileName != NULL ? outputFileName : get_default_log_file_name());
-        VERBOSE_PRINT("Path to the log file: %s\n", fn);
-        fout = fopen(fn, "wt");
-        if (fout == NULL)
-        {
-            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can not create output file %s\n", fn);
-            return -1;
-        }
     }
 
     threadMap = jthread_map_new();
