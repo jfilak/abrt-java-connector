@@ -44,7 +44,7 @@ rpm: dist
 	sed -e 's/global commit .*$$/global commit '"$$(git log -1 --format=%H)"'/' \
 		-e 's/%{?dist}/.'"$$(git log -1 --format=%h)%{?dist}"'/' \
 		$(PKG_DIR)/abrt-java-connector.spec > $(OUT_DIR)/abrt-java-connector.spec && \
-	rpmbuild $(RPM_DIRS) -ba $(OUT_DIR)/abrt-java-connector.spec
+	rpmbuild $(RPM_DIRS) $(RPM_FLAGS) -ba $(OUT_DIR)/abrt-java-connector.spec
 
 # Make sure the output dir is created
 $(OUT_DIR):
