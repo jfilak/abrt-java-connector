@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<workflow>
+    <name>Report to Fedora</name>
+    <description>Process the Java excption using the Fedora infrastructure</description>
+
+    <events>
+        <event>report_uReport</event>
+        <event>report_Bugzilla</event>
+        <event>post-report</event>
+    </events>
+</workflow>

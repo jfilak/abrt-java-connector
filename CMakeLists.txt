@@ -45,6 +45,14 @@ if(NOT SYSCONF_INSTALL_DIR)
     set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc)
 endif()
 
+if(NOT SHARE_INSTALL_PREFIX)
+    set(SHARE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/usr/share)
+endif()
+
+if(NOT MAN_INSTALL_DIR)
+    set(MAN_INSTALL_DIR ${SHARE_INSTALL_PREFIX}/man)
+endif()
+
 add_custom_target(
     dist
     COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${git_commit}/ HEAD | gzip > ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz
