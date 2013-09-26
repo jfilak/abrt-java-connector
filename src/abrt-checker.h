@@ -26,8 +26,22 @@
 
 #define __UNUSED_VAR __attribute__ ((unused))
 
+
+#include <pthread.h>
+
+/*
+ * Shared mutex for synchronization of writing.
+ */
+pthread_mutex_t abrt_print_mutex __UNUSED_VAR;
+
+
 #ifdef VERBOSE
-# define VERBOSE_PRINT(...) do { fprintf(stdout, __VA_ARGS__); } while(0)
+# define VERBOSE_PRINT(...) \
+    do { \
+        pthread_mutex_lock(&abrt_print_mutex); \
+        fprintf(stdout, __VA_ARGS__); \
+        pthread_mutex_unlock(&abrt_print_mutex); \
+    } while(0)
 #else // !VERBOSE
 # define VERBOSE_PRINT(...) do { } while (0)
 #endif // VERBOSE
@@ -35,7 +49,12 @@
 #ifdef SILENT
 # define INFO_PRINT(...) do { } while (0)
 #else // !SILENT
-# define INFO_PRINT(...) do { fprintf(stdout, __VA_ARGS__); } while(0)
+# define INFO_PRINT(...) \
+    do { \
+        pthread_mutex_lock(&abrt_print_mutex); \
+        fprintf(stdout, __VA_ARGS__); \
+        pthread_mutex_unlock(&abrt_print_mutex); \
+    } while(0)
 #endif // SILENT
 
 #endif // __ABRT_CHECKER__
