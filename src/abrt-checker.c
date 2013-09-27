@@ -54,6 +54,29 @@
 #include "jthrowable_circular_buf.h"
 
 
+/* Configuration of processed JVMTI Events */
+
+/* Enables checks based on JVMTI_EVENT_VM_DEATH */
+/* #define ABRT_VM_DEATH_CHECK */
+
+/* Enables checks based on JVMTI_EVENT_EXCEPTION_CATCH  */
+/* #define ABRT_EXCEPTION_CATCH_CHECK */
+
+/* Enables checks based on JVMTI_EVENT_VM_OBJECT_ALLOC */
+/* #define ABRT_OBJECT_ALLOCATION_SIZE_CHECK */
+
+/* Enables checks based on JVMTI_EVENT_OBJECT_FREE */
+/* #define ABRT_OBJECT_FREE_CHECK */
+
+/* Enables checks based on:
+ *   JVMTI_EVENT_GARBAGE_COLLECTION_START
+ *   JVMTI_EVENT_GARBAGE_COLLECTION_FINISH */
+/* #define ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK */
+
+/* Enables checks based on JVMTI_EVENT_COMPILED_METHOD_LOAD */
+/* #define ABRT_COMPILED_METHOD_LOAD_CHECK */
+
+
 /* Basic settings */
 #define VM_MEMORY_ALLOCATION_THRESHOLD 1024
 #define GC_TIME_THRESHOLD 1
