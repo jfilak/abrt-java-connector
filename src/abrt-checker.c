@@ -143,7 +143,12 @@ typedef enum {
 } T_errorDestination;
 
 /* Global monitor lock */
-jrawMonitorID lock;
+jrawMonitorID shared_lock;
+
+#if ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK
+/* GC checks monitor lock */
+jrawMonitorID gc_lock;
+#endif /* ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK */
 
 /* Log file */
 FILE * fout = NULL;
@@ -558,11 +563,12 @@ static int check_jvmti_error(
  * Enter a critical section by doing a JVMTI Raw Monitor Enter
  */
 static void enter_critical_section(
-            jvmtiEnv *jvmti_env)
+            jvmtiEnv *jvmti_env,
+            jrawMonitorID monitor)
 {
     jvmtiError error_code;
 
-    error_code = (*jvmti_env)->RawMonitorEnter(jvmti_env, lock);
+    error_code = (*jvmti_env)->RawMonitorEnter(jvmti_env, monitor);
     check_jvmti_error(jvmti_env, error_code, "Cannot enter with raw monitor");
 }
 
@@ -572,11 +578,12 @@ static void enter_critical_section(
  * Exit a critical section by doing a JVMTI Raw Monitor Exit
  */
 static void exit_critical_section(
-            jvmtiEnv *jvmti_env)
+            jvmtiEnv *jvmti_env,
+            jrawMonitorID monitor)
 {
     jvmtiError error_code;
 
-    error_code = (*jvmti_env)->RawMonitorExit(jvmti_env, lock);
+    error_code = (*jvmti_env)->RawMonitorExit(jvmti_env, monitor);
     check_jvmti_error(jvmti_env, error_code, "Cannot exit with raw monitor");
 }
 
@@ -961,7 +968,7 @@ static void JNICALL callback_on_vm_init(
 {
     char tname[MAX_THREAD_NAME_LENGTH];
 
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, shared_lock);
 
     INFO_PRINT("Got VM init event\n");
     get_thread_name(jvmti_env , thread, tname, sizeof(tname));
@@ -973,7 +980,7 @@ static void JNICALL callback_on_vm_init(
     print_jvm_environment_variables();
     print_process_properties();
 #endif
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, shared_lock);
 }
 
 
@@ -985,9 +992,9 @@ static void JNICALL callback_on_vm_death(
             jvmtiEnv *jvmti_env,
             JNIEnv   *env __UNUSED_VAR)
 {
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, shared_lock);
     INFO_PRINT("Got VM Death event\n");
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, shared_lock);
 }
 
 
@@ -1817,7 +1824,7 @@ static void JNICALL callback_on_exception(
     jclass exception_class;
 
     /* all operations should be processed in critical section */
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, shared_lock);
 
     char tname[MAX_THREAD_NAME_LENGTH];
     get_thread_name(jvmti_env, thr, tname, sizeof(tname));
@@ -1903,7 +1910,7 @@ static void JNICALL callback_on_exception(
         check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
 
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, shared_lock);
 }
 
 
@@ -1928,7 +1935,7 @@ static void JNICALL callback_on_exception_catch(
     jclass class;
 
     /* all operations should be processed in critical section */
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, shared_lock);
 
     /* retrieve all required informations */
     (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
@@ -1959,11 +1966,12 @@ static void JNICALL callback_on_exception_catch(
         check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
 
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, shared_lock);
 }
 
 
 
+#if ABRT_OBJECT_ALLOCATION_SIZE_CHECK
 /**
  * Called when an object is allocated.
  */
@@ -1977,7 +1985,7 @@ static void JNICALL callback_on_object_alloc(
 {
     char *signature_ptr;
 
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, shared_lock);
     (*jvmti_env)->GetClassSignature(jvmti_env, object_klass, &signature_ptr, NULL);
 
     if (size >= VM_MEMORY_ALLOCATION_THRESHOLD)
@@ -1985,11 +1993,13 @@ static void JNICALL callback_on_object_alloc(
         INFO_PRINT("object allocation: instance of class %s, allocated %ld bytes\n", signature_ptr, (long int)size);
     }
     (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)signature_ptr);
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, shared_lock);
 }
+#endif /* ABRT_OBJECT_ALLOCATION_SIZE_CHECK */
 
 
 
+#if ABRT_OBJECT_FREE_CHECK
 /**
  * Called when an object is freed.
  */
@@ -1997,23 +2007,25 @@ static void JNICALL callback_on_object_free(
             jvmtiEnv *jvmti_env,
             jlong tag __UNUSED_VAR)
 {
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, shared_lock);
     VERBOSE_PRINT("object free\n");
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, shared_lock);
 }
+#endif /* ABRT_OBJECT_FREE_CHECK */
 
 
 
+#if ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK
 /**
  * Called on GC start.
  */
 static void JNICALL callback_on_gc_start(
             jvmtiEnv *jvmti_env)
 {
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, gc_lock);
     gc_start_time = clock();
     VERBOSE_PRINT("GC start\n");
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, gc_lock);
 }
 
 
@@ -2026,7 +2038,7 @@ static void JNICALL callback_on_gc_finish(
 {
     clock_t gc_end_time = clock();
     int diff;
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, gc_lock);
     INFO_PRINT("GC end\n");
     diff = (gc_end_time - (gc_start_time))/CLOCKS_PER_SEC;
     if (diff > GC_TIME_THRESHOLD)
@@ -2036,8 +2048,9 @@ static void JNICALL callback_on_gc_finish(
         INFO_PRINT("%s\n", str);
         register_abrt_event(processProperties.main_class, str, (unsigned char *)"GC thread", "no stack trace");
     }
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, gc_lock);
 }
+#endif /* ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK */
 
 
 
@@ -2060,7 +2073,7 @@ static void JNICALL callback_on_compiled_method_load(
     char* class_signature = NULL;
     jclass class;
 
-    enter_critical_section(jvmti_env);
+    enter_critical_section(jvmti_env, shared_lock);
 
     error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &name, &signature, &generic_ptr);
     check_jvmti_error(jvmti_env, error_code, "get method name");
@@ -2095,7 +2108,7 @@ static void JNICALL callback_on_compiled_method_load(
         check_jvmti_error(jvmti_env, error_code, "deallocate class_signature");
     }
 
-    exit_critical_section(jvmti_env);
+    exit_critical_section(jvmti_env, shared_lock);
 }
 
 
@@ -2160,17 +2173,23 @@ jvmtiError register_all_callback_functions(jvmtiEnv *jvmti_env)
     /* JVMTI_EVENT_EXCEPTION_CATCH */
     callbacks.ExceptionCatch = &callback_on_exception_catch;
 
+#if ABRT_OBJECT_ALLOCATION_SIZE_CHECK
     /* JVMTI_EVENT_VM_OBJECT_ALLOC */
     callbacks.VMObjectAlloc = &callback_on_object_alloc;
+#endif
 
+#if ABRT_OBJECT_FREE_CHECK
     /* JVMTI_EVENT_OBJECT_FREE */
     callbacks.ObjectFree = &callback_on_object_free;
+#endif
 
+#if ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK
     /* JVMTI_EVENT_GARBAGE_COLLECTION_START */
     callbacks.GarbageCollectionStart  = &callback_on_gc_start;
 
     /* JVMTI_EVENT_GARBAGE_COLLECTION_FINISH */
     callbacks.GarbageCollectionFinish = &callback_on_gc_finish;
+#endif /* ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK*/
 
     /* JVMTI_EVENT_COMPILED_METHOD_LOAD */
     callbacks.CompiledMethodLoad = &callback_on_compiled_method_load;
@@ -2223,11 +2242,6 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
         return error_code;
     }
 
-    if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_VM_OBJECT_ALLOC)) != JNI_OK)
-    {
-        return error_code;
-    }
-
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_EXCEPTION)) != JNI_OK)
     {
         return error_code;
@@ -2238,16 +2252,21 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
         return error_code;
     }
 
+#if ABRT_OBJECT_ALLOCATION_SIZE_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_VM_OBJECT_ALLOC)) != JNI_OK)
     {
         return error_code;
     }
+#endif /* ABRT_OBJECT_ALLOCATION_SIZE_CHECK */
 
+#if ABRT_OBJECT_FREE_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_OBJECT_FREE)) != JNI_OK)
     {
         return error_code;
     }
+#endif /* ABRT_OBJECT_FREE_CHECK */
 
+#if ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_GARBAGE_COLLECTION_START)) != JNI_OK)
     {
         return error_code;
@@ -2257,6 +2276,7 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
     {
         return error_code;
     }
+#endif /* ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK */
 
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_COMPILED_METHOD_LOAD)) != JNI_OK)
     {
@@ -2271,11 +2291,11 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
 /*
  * Create monitor used to acquire and free global lock (mutex).
  */
-jvmtiError create_raw_monitor(jvmtiEnv *jvmti_env)
+jvmtiError create_raw_monitor(jvmtiEnv *jvmti_env, const char *name, jrawMonitorID *monitor)
 {
     jvmtiError error_code;
 
-    error_code = (*jvmti_env)->CreateRawMonitor(jvmti_env, "agent data", &lock);
+    error_code = (*jvmti_env)->CreateRawMonitor(jvmti_env, name, monitor);
     check_jvmti_error(jvmti_env, error_code, "Cannot create raw monitor");
 
     return error_code;
@@ -2447,6 +2467,8 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     jvmtiError error_code = JVMTI_ERROR_NONE;
     jint       result;
 
+    pthread_mutex_init(&abrt_print_mutex, /*attr*/NULL);
+
     INFO_PRINT("Agent_OnLoad\n");
     VERBOSE_PRINT("VERBOSE OUTPUT ENABLED\n");
     parse_commandline_options(options);
@@ -2483,10 +2505,18 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     }
 
     /* create global mutex */
-    if ((error_code = create_raw_monitor(jvmti_env)) != JNI_OK)
+    if ((error_code = create_raw_monitor(jvmti_env, "Shared Agent Lock", &shared_lock)) != JNI_OK)
     {
         return error_code;
     }
+
+#if ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK
+    /* create GC checks mutex */
+    if ((error_code = create_raw_monitor(jvmti_env, "GC Checks Lock", &gc_lock)) != JNI_OK)
+    {
+        return error_code;
+    }
+#endif
 
     threadMap = jthread_map_new();
     if (NULL == threadMap)
@@ -2505,6 +2535,8 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
  */
 JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
 {
+    pthread_mutex_destroy(&abrt_print_mutex);
+
     INFO_PRINT("Agent_OnUnLoad\n");
     if (outputFileName != DISABLED_LOG_OUTPUT)
     {
