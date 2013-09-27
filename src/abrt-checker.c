@@ -985,6 +985,7 @@ static void JNICALL callback_on_vm_init(
 
 
 
+#if ABRT_VM_DEATH_CHECK
 /*
  * Called before JVM shuts down.
  */
@@ -996,6 +997,7 @@ static void JNICALL callback_on_vm_death(
     INFO_PRINT("Got VM Death event\n");
     exit_critical_section(jvmti_env, shared_lock);
 }
+#endif /* ABRT_VM_DEATH_CHECK */
 
 
 
@@ -1915,6 +1917,7 @@ static void JNICALL callback_on_exception(
 
 
 
+#if ABRT_EXCEPTION_CATCH_CHECK
 /*
  * This function is called when an exception is catched.
  */
@@ -1968,6 +1971,7 @@ static void JNICALL callback_on_exception_catch(
 
     exit_critical_section(jvmti_env, shared_lock);
 }
+#endif /* ABRT_EXCEPTION_CATCH_CHECK */
 
 
 
@@ -2054,6 +2058,7 @@ static void JNICALL callback_on_gc_finish(
 
 
 
+#if ABRT_COMPILED_METHOD_LOAD_CHECK
 /**
  * Called when some method is about to be compiled.
  */
@@ -2110,6 +2115,7 @@ static void JNICALL callback_on_compiled_method_load(
 
     exit_critical_section(jvmti_env, shared_lock);
 }
+#endif /* ABRT_COMPILED_METHOD_LOAD_CHECK */
 
 
 
@@ -2158,8 +2164,10 @@ jvmtiError register_all_callback_functions(jvmtiEnv *jvmti_env)
     /* JVMTI_EVENT_VM_INIT */
     callbacks.VMInit = &callback_on_vm_init;
 
+#if ABRT_VM_DEATH_CHECK
     /* JVMTI_EVENT_VM_DEATH */
     callbacks.VMDeath = &callback_on_vm_death;
+#endif /* ABRT_VM_DEATH_CHECK */
 
     /* JVMTI_EVENT_THREAD_START */
     callbacks.ThreadStart = &callback_on_thread_start;
@@ -2170,8 +2178,10 @@ jvmtiError register_all_callback_functions(jvmtiEnv *jvmti_env)
     /* JVMTI_EVENT_EXCEPTION */
     callbacks.Exception = &callback_on_exception;
 
+#if ABRT_EXCEPTION_CATCH_CHECK
     /* JVMTI_EVENT_EXCEPTION_CATCH */
     callbacks.ExceptionCatch = &callback_on_exception_catch;
+#endif /* ABRT_EXCEPTION_CATCH_CHECK */
 
 #if ABRT_OBJECT_ALLOCATION_SIZE_CHECK
     /* JVMTI_EVENT_VM_OBJECT_ALLOC */
@@ -2191,8 +2201,10 @@ jvmtiError register_all_callback_functions(jvmtiEnv *jvmti_env)
     callbacks.GarbageCollectionFinish = &callback_on_gc_finish;
 #endif /* ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK*/
 
+#if ABRT_COMPILED_METHOD_LOAD_CHECK
     /* JVMTI_EVENT_COMPILED_METHOD_LOAD */
     callbacks.CompiledMethodLoad = &callback_on_compiled_method_load;
+#endif /* ABRT_COMPILED_METHOD_LOAD_CHECK */
 
     error_code = (*jvmti_env)->SetEventCallbacks(jvmti_env, &callbacks, (jint)sizeof(callbacks));
     check_jvmti_error(jvmti_env, error_code, "Cannot set jvmti callbacks");
@@ -2227,10 +2239,12 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
         return error_code;
     }
 
+#if ABRT_VM_DEATH_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_VM_DEATH)) != JNI_OK)
     {
         return error_code;
     }
+#endif /* ABRT_VM_DEATH_CHECK */
 
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_THREAD_START)) != JNI_OK)
     {
@@ -2247,10 +2261,12 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
         return error_code;
     }
 
+#if ABRT_EXCEPTION_CATCH_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_EXCEPTION_CATCH)) != JNI_OK)
     {
         return error_code;
     }
+#endif /* ABRT_EXCEPTION_CATCH_CHECK */
 
 #if ABRT_OBJECT_ALLOCATION_SIZE_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_VM_OBJECT_ALLOC)) != JNI_OK)
@@ -2278,10 +2294,12 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
     }
 #endif /* ABRT_GARBAGE_COLLECTION_TIMEOUT_CHECK */
 
+#if ABRT_COMPILED_METHOD_LOAD_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_COMPILED_METHOD_LOAD)) != JNI_OK)
     {
         return error_code;
     }
+#endif /* ABRT_COMPILED_METHOD_LOAD_CHECK */
 
     return error_code;
 }
