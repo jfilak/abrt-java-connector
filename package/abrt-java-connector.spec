@@ -1,8 +1,8 @@
-%global commit 9214372f6635aa377954f26a7c4dc90477a14564
+%global commit befb850dbc72b117ad6bebabee314e7d41b97183
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 Name:		abrt-java-connector
-Version:	1.0.5
+Version:	1.0.6
 Release:	1%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
@@ -96,6 +96,10 @@ make test
 
 
 %changelog
+* Tue Oct 01 2013 Jakub Filak <jfilak@redhat.com> - 1.0.6-1
+- Fix a deadlock in GC start callback
+- Disable experimental features in production releases
+
 * Tue Jul 30 2013 Jakub Filak <jfilak@redhat.com> - 1.0.5-1
 - Provide a proper configuration for libreport
 
