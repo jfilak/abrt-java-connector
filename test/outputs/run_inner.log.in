@@ -1,11 +1,11 @@
-Caught java.lang.ArrayIndexOutOfBoundsException exception in thread "main" in a method SimpleTest.throwIndexOutOfBoundsException() with signature ()V
+Caught exception java.lang.ArrayIndexOutOfBoundsException in method SimpleTest.throwIndexOutOfBoundsException()
 Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: 42
 	at SimpleTest.throwIndexOutOfBoundsException(SimpleTest.java:24) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.catchIndexOutOfBoundsException(SimpleTest.java:47) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.throwAndCatchAllExceptions(SimpleTest.java:61) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at InnerExceptions.run(InnerExceptions.java:11) [file:@CMAKE_BINARY_DIR@/test/InnerExceptions.class]
 	at InnerExceptions.main(InnerExceptions.java:28) [file:@CMAKE_BINARY_DIR@/test/InnerExceptions.class]
-Uncaught java.lang.RuntimeException exception in thread "main" in a method InnerExceptions.run() with signature ()V
+Uncaught exception java.lang.RuntimeException in method InnerExceptions.run()
 Exception in thread "main" java.lang.RuntimeException: java.lang.NullPointerException
 	at InnerExceptions.run(InnerExceptions.java:17) [file:@CMAKE_BINARY_DIR@/test/InnerExceptions.class]
 	at InnerExceptions.main(InnerExceptions.java:28) [file:@CMAKE_BINARY_DIR@/test/InnerExceptions.class]
