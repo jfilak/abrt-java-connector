@@ -1,4 +1,4 @@
-Uncaught java.lang.ClassNotFoundException exception in thread "main" in a method java.lang.ClassLoader.loadClass() with signature (Ljava/lang/String;Z)Ljava/lang/Class;
+Uncaught exception java.lang.ClassNotFoundException in method java.lang.ClassLoader.loadClass()
 Exception in thread "main" java.lang.ClassNotFoundException: MissingClassTest
 	at java.net.URLClassLoader$1.run(URLClassLoader.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/URLClassLoader$1.class]
 	at java.net.URLClassLoader$1.run(URLClassLoader.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/URLClassLoader$1.class]
