@@ -45,6 +45,7 @@ _add_class_target(RemoteTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(MultiThreadTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(Test TEST_JAVA_TARGETS)
 _add_class_target(com/redhat/abrt/test/Test TEST_JAVA_TARGETS)
+_add_class_target(com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames TEST_JAVA_TARGETS)
 _add_class_target(BadClassTest TEST_JAVA_TARGETS)
 _add_class_target(MissingClass TEST_JAVA_TARGETS)
 _add_class_target(MissingClassTest TEST_JAVA_TARGETS MissingClass)
@@ -199,6 +200,39 @@ _add_test_target(
     AGENT_OPTIONS caught=MaliciousEqualsException
 )
 #_add_test(run_overriden_eqauls 2)
+
+_add_test_target(
+    run_cut_method_namespace
+    com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames
+    3
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_cut_method_namespace 2)
+
+_add_test_target(
+    run_cut_exception_namespace
+    com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames
+    2
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_cut_exception_namespace 2)
+
+_add_test_target(
+    run_cut_method_class
+    com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames
+    1
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_cut_method_class 2)
+
+_add_test_target(
+    run_cut_reason_message
+    com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames
+    0
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_cut_reason_message 2)
+
 
 add_custom_target(
     run_thread_stress
