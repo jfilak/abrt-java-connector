@@ -37,6 +37,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <linux/limits.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 /* Shared macros and so on */
 #include "abrt-checker.h"
@@ -238,6 +240,43 @@ static const char *get_default_log_file_name()
 
 
 /*
+ * Appends file_name to *path and returns a pointer to result. Returns NULL on
+ * error and leaves *path untouched.
+ */
+static char *append_file_to_path(char **path, const char *file_name)
+{
+    if (NULL == file_name)
+    {
+        return NULL;
+    }
+
+    const size_t outlen = strlen(*path);
+    const int need_trailing = (*path)[outlen -1] != '/';
+    char *result = malloc(outlen + strlen(file_name) + need_trailing + 1);
+    if (NULL == result)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory\n");
+        return NULL;
+    }
+
+    char *tmp = strcpy(result, *path);
+    tmp += outlen;
+    if (need_trailing)
+    {
+        *tmp = '/';
+        ++tmp;
+    }
+
+    strcpy(tmp, file_name);
+
+    free(*path);
+    *path = result;
+    return result;
+}
+
+
+
+/*
  * Gets the log file
  */
 static FILE *get_log_file()
@@ -248,7 +287,34 @@ static FILE *get_log_file()
         && DISABLED_LOG_OUTPUT != outputFileName)
     {
         /* try to open output log file */
-        const char *fn = (outputFileName != NULL ? outputFileName : get_default_log_file_name());
+        const char *fn = outputFileName;
+        if (NULL != fn)
+        {
+            struct stat sb;
+            if (0 > stat(fn, &sb))
+            {
+                if (ENOENT != errno)
+                {
+                    fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": cannot stat log file %s: %s\n", fn, strerror(errno));
+                    return NULL;
+                }
+            }
+            else if (S_ISDIR(sb.st_mode))
+            {
+                fn = append_file_to_path(&outputFileName, get_default_log_file_name());
+            }
+        }
+        else
+        {
+            fn = get_default_log_file_name();
+        }
+
+        if (NULL == fn)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": cannot build log file name.");
+            return NULL;
+        }
+
         VERBOSE_PRINT("Path to the log file: %s\n", fn);
         fout = fopen(fn, "wt");
         if (NULL == fout)
