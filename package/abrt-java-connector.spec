@@ -14,6 +14,7 @@ Source0:	https://github.com/jfilak/%{name}/archive/%{commit}/%{name}-%{version}-
 BuildRequires:	cmake
 BuildRequires:	libreport-devel
 BuildRequires:	java-1.7.0-openjdk-devel
+BuildRequires:	systemd-devel
 
 Requires:	abrt
 
