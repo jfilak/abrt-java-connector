@@ -39,6 +39,8 @@
 #include <linux/limits.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <systemd/sd-journal.h>
+#include <syslog.h>
 
 /* Shared macros and so on */
 #include "abrt-checker.h"
@@ -168,6 +170,8 @@ typedef struct {
 typedef enum {
     ED_TERMINAL = 1,                ///< Report errors to the terminal
     ED_ABRT     = ED_TERMINAL << 1, ///< Submit error reports to ABRT
+    ED_SYSLOG   = ED_ABRT << 1,     ///< Submit error reports to syslog
+    ED_JOURNALD = ED_SYSLOG << 1,   ///< Submit error reports to journald
 } T_errorDestination;
 
 /* Global monitor lock */
@@ -191,7 +195,7 @@ T_jvmEnvironment jvmEnvironment;
 T_processProperties processProperties;
 
 /* Global configuration of report destination */
-T_errorDestination reportErrosTo;
+T_errorDestination reportErrosTo = ED_JOURNALD;
 
 /* Path (not necessary absolute) to output file */
 char *outputFileName = DISABLED_LOG_OUTPUT;
@@ -471,7 +475,10 @@ static void add_process_properties_data(problem_data_t *pd)
  * Register new ABRT event using given message and a method name.
  * If reportErrosTo global flags doesn't contain ED_ABRT, this function does nothing.
  */
-static void register_abrt_event(char * executable, char * message, char * backtrace)
+static void register_abrt_event(
+        const char *executable,
+        const char *message,
+        const char *backtrace)
 {
     if ((reportErrosTo & ED_ABRT) == 0)
     {
@@ -505,6 +512,46 @@ static void register_abrt_event(char * executable, char * message, char * backtr
     int res = problem_data_send_to_abrt(pd);
     fprintf(stderr, "ABRT problem creation: '%s'\n", res ? "failure" : "success");
     problem_data_free(pd);
+}
+
+
+
+/*
+ * Report a stack trace to all systems
+ */
+static void report_stacktrace(
+        const char *message,
+        const char *stacktrace,
+        int sure_unique)
+{
+    if (reportErrosTo & ED_SYSLOG)
+    {
+        VERBOSE_PRINT("Reporting stack trace to syslog\n");
+        syslog(LOG_ERR, "%s\n%s", message, stacktrace);
+    }
+
+    if (reportErrosTo & ED_JOURNALD)
+    {
+        VERBOSE_PRINT("Reporting stack trace to JournalD\n");
+        sd_journal_send("MESSAGE=%s", message,
+                        "PRIORITY=%d", LOG_ERR,
+                        "STACK_TRACE=%s", stacktrace ? stacktrace : "no stack trace",
+                        NULL);
+
+    }
+
+    log_print("%s\n", message);
+
+    if (stacktrace)
+    {
+        log_print("%s", stacktrace);
+    }
+
+    if (NULL != stacktrace && sure_unique)
+    {
+        VERBOSE_PRINT("Reporting stack trace to ABRT");
+        register_abrt_event(processProperties.main_class, message, stacktrace);
+    }
 }
 
 
@@ -2026,23 +2073,16 @@ static void JNICALL callback_on_exception(
             char *message = format_exception_reason_message(/*caught?*/NULL != catch_method,
                     updated_exception_name_ptr, class_name_ptr, method_name_ptr);
 
-            if (NULL != message)
-            {
-                log_print("%s\n", message);
+            char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object);
 
-                //char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
-                char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object);
-                if (NULL != stack_trace_str)
-                {
-                    log_print("%s", stack_trace_str);
-                    if (NULL != threads_exc_buf)
-                    {
-                        register_abrt_event(processProperties.main_class, message, stack_trace_str);
-                    }
-                    free(stack_trace_str);
-                }
-                free(message);
-            }
+            const char *report_message = message;
+            if (NULL == report_message)
+                report_message = (NULL != catch_method) ? "Caught exception" : "Uncaught exception";
+
+            report_stacktrace(report_message, stack_trace_str, NULL != threads_exc_buf);
+
+            free(message);
+            free(stack_trace_str);
         }
         else
         {
@@ -2600,6 +2640,22 @@ void parse_commandline_options(char *options)
             {
                 VERBOSE_PRINT("Enabling errors reporting to ABRT\n");
                 reportErrosTo |= ED_ABRT;
+            }
+        }
+        else if (strcmp("syslog", key) == 0)
+        {
+            if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
+            {
+                VERBOSE_PRINT("Enabling errors reporting to syslog\n");
+                reportErrosTo |= ED_SYSLOG;
+            }
+        }
+        else if (strcmp("journald", key) == 0)
+        {
+            if (value != NULL && (strcasecmp("off", value) == 0 || strcasecmp("no", value) == 0))
+            {
+                VERBOSE_PRINT("Disable errors reporting to JournalD\n");
+                reportErrosTo &= ~ED_JOURNALD;
             }
         }
         else if(strcmp("output", key) == 0)

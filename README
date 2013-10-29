@@ -50,3 +50,16 @@ Example4:
 - user must provide a colon separated list of exception type names
 
 $  java -agentlib:abrt-java-connector=caught=java.io.FileNotFoundException:java.io.FileNotFoundException $MyClass -platform.jvmtiSupported true
+
+Example5:
+- this example shows hot to enable syslog and disable journald
+- abrt-java-connector reports detected problems to journald by default
+- problems reported to journald has stack trace stored in STACK_TRACE field
+- problems reported to syslog are written to syslog with entire backtrace
+
+- disable journald
+$  java -agentlib:abrt-java-connector=journald=off $MyClass -platform.jvmtiSupported true
+
+
+- enable syslog
+$  java -agentlib:abrt-java-connector=syslog=on $MyClass -platform.jvmtiSupported true
