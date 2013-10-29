@@ -194,7 +194,7 @@ T_processProperties processProperties;
 T_errorDestination reportErrosTo;
 
 /* Path (not necessary absolute) to output file */
-char *outputFileName;
+char *outputFileName = DISABLED_LOG_OUTPUT;
 
 /* Path (not necessary absolute) to output file */
 char **reportedCaughExceptionTypes;
@@ -2604,6 +2604,11 @@ void parse_commandline_options(char *options)
         }
         else if(strcmp("output", key) == 0)
         {
+            if (DISABLED_LOG_OUTPUT != outputFileName)
+            {
+                free(outputFileName);
+            }
+
             if (value == NULL || value[0] == '\0')
             {
                 VERBOSE_PRINT("Disabling output to log file\n");

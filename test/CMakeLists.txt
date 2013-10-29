@@ -266,5 +266,14 @@ add_custom_target(
 )
 add_test(test_log_file_in_directory make run_log_file_in_directory)
 
+add_custom_target(
+    run_default_no_log_file
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME} Test || test -z "`find -name abrt_checker_*.log`"
+    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_test(test_default_no_log_file make run_default_no_log_file)
+
+
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
 add_custom_target(run_all DEPENDS ${all_run_targets})
