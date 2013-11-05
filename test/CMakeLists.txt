@@ -52,6 +52,7 @@ _add_class_target(TryFinallyTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(InnerExceptions TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(OverridenEqualExceptionTest TEST_JAVA_TARGETS)
 _add_class_target(NoException TEST_JAVA_TARGETS)
+_add_class_target(ThreadStressTest TEST_JAVA_TARGETS SimpleTest)
 
 _add_jar_target(JarTest JAR_TEST_PATH SimpleTest)
 set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
@@ -198,6 +199,14 @@ _add_test_target(
     AGENT_OPTIONS caught=MaliciousEqualsException
 )
 #_add_test(run_overriden_eqauls 2)
+
+add_custom_target(
+    run_thread_stress
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=caught=java.lang.ArrayIndexOutOfBoundsException,output= ThreadStressTest
+    DEPENDS ${TEST_JAVA_TARGETS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_test(test_thread_stress  make run_thread_stress)
 
 add_custom_target(
     run_empty_command_line_options
