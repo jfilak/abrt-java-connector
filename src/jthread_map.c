@@ -20,6 +20,7 @@
 #include "jthrowable_circular_buf.h"
 
 #include <stdlib.h>
+#include <pthread.h>
 #include <assert.h>
 
 
@@ -42,6 +43,7 @@ typedef struct jthread_map_item {
 
 struct jthread_map {
     T_jthreadMapItem *items[MAP_SIZE]; ///< map elements
+    pthread_mutex_t mutex;
 };
 
 
@@ -53,6 +55,8 @@ T_jthreadMap *jthread_map_new()
     {
         fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": calloc() error\n");
     }
+
+    pthread_mutex_init(&map->mutex, /*use default attributes*/NULL);
 
     return map;
 }
@@ -66,6 +70,7 @@ void jthread_map_free(T_jthreadMap *map)
         return;
     }
 
+    pthread_mutex_destroy(&map->mutex);
     free(map);
 }
 
@@ -104,6 +109,8 @@ void jthread_map_push(T_jthreadMap *map, jlong tid, T_jthrowableCircularBuf *buf
 {
     assert(NULL != map);
 
+    pthread_mutex_lock(&map->mutex);
+
     const long index = tid % MAP_SIZE;
     T_jthreadMapItem *last = NULL;
     T_jthreadMapItem *itm = map->items[index];
@@ -125,6 +132,8 @@ void jthread_map_push(T_jthreadMap *map, jlong tid, T_jthrowableCircularBuf *buf
             last->next = new;
         }
     }
+
+    pthread_mutex_unlock(&map->mutex);
 }
 
 
@@ -133,17 +142,23 @@ T_jthrowableCircularBuf *jthread_map_get(T_jthreadMap *map, jlong tid)
 {
     assert(NULL != map);
 
+    pthread_mutex_lock(&map->mutex);
+
     const size_t index = tid % MAP_SIZE;
+    T_jthrowableCircularBuf *buffer = NULL;
 
     for (T_jthreadMapItem *itm = map->items[index]; NULL != itm; itm = itm->next)
     {
         if (itm->tid == tid)
         {
-            return itm->buffer;
+            buffer = itm->buffer;
+            break;
         }
     }
 
-    return NULL;
+    pthread_mutex_unlock(&map->mutex);
+
+    return buffer;
 }
 
 
@@ -151,6 +166,8 @@ T_jthrowableCircularBuf *jthread_map_get(T_jthreadMap *map, jlong tid)
 T_jthrowableCircularBuf *jthread_map_pop(T_jthreadMap *map, jlong tid)
 {
     assert(NULL != map);
+
+    pthread_mutex_lock(&map->mutex);
 
     const size_t index = tid % MAP_SIZE;
     T_jthrowableCircularBuf *buffer = NULL;
@@ -180,6 +197,8 @@ T_jthrowableCircularBuf *jthread_map_pop(T_jthreadMap *map, jlong tid)
             jthread_map_item_free(itm);
         }
     }
+
+    pthread_mutex_unlock(&map->mutex);
 
     return buffer;
 }
