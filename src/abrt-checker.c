@@ -37,6 +37,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <linux/limits.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <systemd/sd-journal.h>
+#include <syslog.h>
 
 /* Shared macros and so on */
 #include "abrt-checker.h"
@@ -86,6 +90,9 @@
 
 /* Don't need to be changed */
 #define MAX_THREAD_NAME_LENGTH 40
+
+/* Max. length of reason message */
+#define MAX_REASON_MESSAGE_STRING_LENGTH 255
 
 /* Max. length of stack trace */
 #define MAX_STACK_TRACE_STRING_LENGTH 10000
@@ -163,6 +170,8 @@ typedef struct {
 typedef enum {
     ED_TERMINAL = 1,                ///< Report errors to the terminal
     ED_ABRT     = ED_TERMINAL << 1, ///< Submit error reports to ABRT
+    ED_SYSLOG   = ED_ABRT << 1,     ///< Submit error reports to syslog
+    ED_JOURNALD = ED_SYSLOG << 1,   ///< Submit error reports to journald
 } T_errorDestination;
 
 /* Global monitor lock */
@@ -186,10 +195,10 @@ T_jvmEnvironment jvmEnvironment;
 T_processProperties processProperties;
 
 /* Global configuration of report destination */
-T_errorDestination reportErrosTo;
+T_errorDestination reportErrosTo = ED_JOURNALD;
 
 /* Path (not necessary absolute) to output file */
-char *outputFileName;
+char *outputFileName = DISABLED_LOG_OUTPUT;
 
 /* Path (not necessary absolute) to output file */
 char **reportedCaughExceptionTypes;
@@ -235,6 +244,43 @@ static const char *get_default_log_file_name()
 
 
 /*
+ * Appends file_name to *path and returns a pointer to result. Returns NULL on
+ * error and leaves *path untouched.
+ */
+static char *append_file_to_path(char **path, const char *file_name)
+{
+    if (NULL == file_name)
+    {
+        return NULL;
+    }
+
+    const size_t outlen = strlen(*path);
+    const int need_trailing = (*path)[outlen -1] != '/';
+    char *result = malloc(outlen + strlen(file_name) + need_trailing + 1);
+    if (NULL == result)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory\n");
+        return NULL;
+    }
+
+    char *tmp = strcpy(result, *path);
+    tmp += outlen;
+    if (need_trailing)
+    {
+        *tmp = '/';
+        ++tmp;
+    }
+
+    strcpy(tmp, file_name);
+
+    free(*path);
+    *path = result;
+    return result;
+}
+
+
+
+/*
  * Gets the log file
  */
 static FILE *get_log_file()
@@ -245,7 +291,34 @@ static FILE *get_log_file()
         && DISABLED_LOG_OUTPUT != outputFileName)
     {
         /* try to open output log file */
-        const char *fn = (outputFileName != NULL ? outputFileName : get_default_log_file_name());
+        const char *fn = outputFileName;
+        if (NULL != fn)
+        {
+            struct stat sb;
+            if (0 > stat(fn, &sb))
+            {
+                if (ENOENT != errno)
+                {
+                    fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": cannot stat log file %s: %s\n", fn, strerror(errno));
+                    return NULL;
+                }
+            }
+            else if (S_ISDIR(sb.st_mode))
+            {
+                fn = append_file_to_path(&outputFileName, get_default_log_file_name());
+            }
+        }
+        else
+        {
+            fn = get_default_log_file_name();
+        }
+
+        if (NULL == fn)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": cannot build log file name.");
+            return NULL;
+        }
+
         VERBOSE_PRINT("Path to the log file: %s\n", fn);
         fout = fopen(fn, "wt");
         if (NULL == fout)
@@ -402,7 +475,10 @@ static void add_process_properties_data(problem_data_t *pd)
  * Register new ABRT event using given message and a method name.
  * If reportErrosTo global flags doesn't contain ED_ABRT, this function does nothing.
  */
-static void register_abrt_event(char * executable, char * message, unsigned char * method, char * backtrace)
+static void register_abrt_event(
+        const char *executable,
+        const char *message,
+        const char *backtrace)
 {
     if ((reportErrosTo & ED_ABRT) == 0)
     {
@@ -410,7 +486,6 @@ static void register_abrt_event(char * executable, char * message, unsigned char
         return;
     }
 
-    char abrt_message[1000];
     char s[11];
     problem_data_t *pd = problem_data_new();
 
@@ -421,14 +496,12 @@ static void register_abrt_event(char * executable, char * message, unsigned char
     get_uid_as_string(s);
     problem_data_add_text_editable(pd, FILENAME_UID, s);
 
-    sprintf(abrt_message, "%s in method %s", message, method);
-
     /* executable must belong to some package otherwise ABRT refuse it */
     problem_data_add_text_editable(pd, FILENAME_EXECUTABLE, executable);
     problem_data_add_text_editable(pd, FILENAME_BACKTRACE, backtrace);
 
     /* type and analyzer are the same for abrt, we keep both just for sake of comaptibility */
-    problem_data_add_text_editable(pd, FILENAME_REASON, abrt_message);
+    problem_data_add_text_editable(pd, FILENAME_REASON, message);
     /* end of required fields */
 
     /* add optional fields */
@@ -439,6 +512,46 @@ static void register_abrt_event(char * executable, char * message, unsigned char
     int res = problem_data_send_to_abrt(pd);
     fprintf(stderr, "ABRT problem creation: '%s'\n", res ? "failure" : "success");
     problem_data_free(pd);
+}
+
+
+
+/*
+ * Report a stack trace to all systems
+ */
+static void report_stacktrace(
+        const char *message,
+        const char *stacktrace,
+        int sure_unique)
+{
+    if (reportErrosTo & ED_SYSLOG)
+    {
+        VERBOSE_PRINT("Reporting stack trace to syslog\n");
+        syslog(LOG_ERR, "%s\n%s", message, stacktrace);
+    }
+
+    if (reportErrosTo & ED_JOURNALD)
+    {
+        VERBOSE_PRINT("Reporting stack trace to JournalD\n");
+        sd_journal_send("MESSAGE=%s", message,
+                        "PRIORITY=%d", LOG_ERR,
+                        "STACK_TRACE=%s", stacktrace ? stacktrace : "no stack trace",
+                        NULL);
+
+    }
+
+    log_print("%s\n", message);
+
+    if (stacktrace)
+    {
+        log_print("%s", stacktrace);
+    }
+
+    if (NULL != stacktrace && sure_unique)
+    {
+        VERBOSE_PRINT("Reporting stack trace to ABRT");
+        register_abrt_event(processProperties.main_class, message, stacktrace);
+    }
 }
 
 
@@ -485,6 +598,66 @@ static int get_tid(
     *tid = (*jni_env)->CallLongMethod(jni_env, thr, get_id);
 
     return 0;
+}
+
+
+
+static char *format_exception_reason_message(
+        int caught,
+        const char *exception_fqdn,
+        const char *class_fqdn,
+        const char *method)
+{
+    const char *exception_name = exception_fqdn;
+    const char *class_name = class_fqdn;
+    const char *prefix = caught ? "Caught" : "Uncaught";
+
+    char *message = (char*)calloc(MAX_REASON_MESSAGE_STRING_LENGTH + 1, sizeof(char));
+    if (message == NULL)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": calloc(): out of memory");
+        return NULL;
+    }
+
+    while (1)
+    {
+        const int message_len = snprintf(message, MAX_REASON_MESSAGE_STRING_LENGTH,
+                "%s exception %s in method %s%s%s()", prefix,
+                exception_name, class_name, ('\0' != class_name[0] ? "." : ""),
+                method);
+
+        if (message_len <= 0)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": snprintf(): can't print reason message to memory on stack\n");
+            free(message);
+            return NULL;
+        }
+        else if (message_len >= MAX_REASON_MESSAGE_STRING_LENGTH)
+        {
+            const char *ptr = NULL;
+            if (NULL != (ptr = strrchr(class_name, '.')))
+            {
+                /* Drop name space from method signature */
+                class_name = ptr + 1;
+                continue;
+            }
+            else if(NULL != (ptr = strrchr(exception_name, '.')))
+            {
+                /* Drop name space from exception class signature */
+                exception_name = ptr + 1;
+                continue;
+            }
+            else if (class_name[0] != '\0')
+            {
+                /* Drop class name from method signature */
+                class_name += strlen(class_name);
+                continue;
+            }
+            /* No more place for shortening. The message will remain truncated. */
+        }
+
+        return message;
+    }
 }
 
 
@@ -1892,20 +2065,24 @@ static void JNICALL callback_on_exception(
                 jthrowable_circular_buf_push(threads_exc_buf, exception_object);
             }
 
-            log_print("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
-            log_print("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+            /* Remove trailing '.' */
+            const ssize_t class_name_len = strlen(class_name_ptr);
+            if (class_name_len > 0)
+                class_name_ptr[class_name_len - 1] = '\0';
 
-            //char *stack_trace_str = generate_stack_trace(jvmti_env, jni_env, thr, tname, updated_exception_name_ptr);
+            char *message = format_exception_reason_message(/*caught?*/NULL != catch_method,
+                    updated_exception_name_ptr, class_name_ptr, method_name_ptr);
+
             char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object);
-            if (NULL != stack_trace_str)
-            {
-                log_print("%s", stack_trace_str);
-                if (NULL != threads_exc_buf)
-                {
-                    register_abrt_event(processProperties.main_class, (catch_method == NULL ? "Uncaught exception" : "Caught exception"), (unsigned char *)method_name_ptr, stack_trace_str);
-                }
-                free(stack_trace_str);
-            }
+
+            const char *report_message = message;
+            if (NULL == report_message)
+                report_message = (NULL != catch_method) ? "Caught exception" : "Uncaught exception";
+
+            report_stacktrace(report_message, stack_trace_str, NULL != threads_exc_buf);
+
+            free(message);
+            free(stack_trace_str);
         }
         else
         {
@@ -2465,8 +2642,29 @@ void parse_commandline_options(char *options)
                 reportErrosTo |= ED_ABRT;
             }
         }
+        else if (strcmp("syslog", key) == 0)
+        {
+            if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
+            {
+                VERBOSE_PRINT("Enabling errors reporting to syslog\n");
+                reportErrosTo |= ED_SYSLOG;
+            }
+        }
+        else if (strcmp("journald", key) == 0)
+        {
+            if (value != NULL && (strcasecmp("off", value) == 0 || strcasecmp("no", value) == 0))
+            {
+                VERBOSE_PRINT("Disable errors reporting to JournalD\n");
+                reportErrosTo &= ~ED_JOURNALD;
+            }
+        }
         else if(strcmp("output", key) == 0)
         {
+            if (DISABLED_LOG_OUTPUT != outputFileName)
+            {
+                free(outputFileName);
+            }
+
             if (value == NULL || value[0] == '\0')
             {
                 VERBOSE_PRINT("Disabling output to log file\n");

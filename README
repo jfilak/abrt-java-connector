@@ -33,14 +33,14 @@ $  java -agentlib:abrt-java-connector=abrt=on $MyClass -platform.jvmtiSupported 
 Example3:
 - this example shows how to configure the log output destination
 - output option is designed for this purpose
-- by default abrt-java-connector prints the log to abrt_checker_$PID.log file in the current directory
-- the first command prints agent's output to /tmp/abrt-agent.log file
+- abrt-java-connector does not print any logs by default
+- the first command prints logs to /tmp/abrt_checker_$PID.log
+
+$  java -agentlib:abrt-java-connector=output=/tmp $MyClass -platform.jvmtiSupported true
+
+- the second command prints agent's output to /tmp/abrt-agent.log file
 
 $  java -agentlib:abrt-java-connector=output=/tmp/abrt-agent.log $MyClass -platform.jvmtiSupported true
-
-- the second command completely disables logging to file
-
-$  java -agentlib:abrt-java-connector=output= $MyClass -platform.jvmtiSupported true
 
 
 Example4:
@@ -50,3 +50,16 @@ Example4:
 - user must provide a colon separated list of exception type names
 
 $  java -agentlib:abrt-java-connector=caught=java.io.FileNotFoundException:java.io.FileNotFoundException $MyClass -platform.jvmtiSupported true
+
+Example5:
+- this example shows hot to enable syslog and disable journald
+- abrt-java-connector reports detected problems to journald by default
+- problems reported to journald has stack trace stored in STACK_TRACE field
+- problems reported to syslog are written to syslog with entire backtrace
+
+- disable journald
+$  java -agentlib:abrt-java-connector=journald=off $MyClass -platform.jvmtiSupported true
+
+
+- enable syslog
+$  java -agentlib:abrt-java-connector=syslog=on $MyClass -platform.jvmtiSupported true

@@ -45,6 +45,7 @@ _add_class_target(RemoteTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(MultiThreadTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(Test TEST_JAVA_TARGETS)
 _add_class_target(com/redhat/abrt/test/Test TEST_JAVA_TARGETS)
+_add_class_target(com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames TEST_JAVA_TARGETS)
 _add_class_target(BadClassTest TEST_JAVA_TARGETS)
 _add_class_target(MissingClass TEST_JAVA_TARGETS)
 _add_class_target(MissingClassTest TEST_JAVA_TARGETS MissingClass)
@@ -200,9 +201,42 @@ _add_test_target(
 )
 #_add_test(run_overriden_eqauls 2)
 
+_add_test_target(
+    run_cut_method_namespace
+    com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames
+    3
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_cut_method_namespace 2)
+
+_add_test_target(
+    run_cut_exception_namespace
+    com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames
+    2
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_cut_exception_namespace 2)
+
+_add_test_target(
+    run_cut_method_class
+    com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames
+    1
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_cut_method_class 2)
+
+_add_test_target(
+    run_cut_reason_message
+    com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames
+    0
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_cut_reason_message 2)
+
+
 add_custom_target(
     run_thread_stress
-    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=caught=java.lang.ArrayIndexOutOfBoundsException,output= ThreadStressTest
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=caught=java.lang.ArrayIndexOutOfBoundsException,journald=no ThreadStressTest
     DEPENDS ${TEST_JAVA_TARGETS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -223,6 +257,22 @@ add_custom_target(
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 add_test(test_no_log_file make run_no_log_file)
+
+add_custom_target(
+    run_log_file_in_directory
+    COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/lid && mkdir ${CMAKE_CURRENT_BINARY_DIR}/lid && LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=output=${CMAKE_CURRENT_BINARY_DIR}/lid Test || test -n `find ${CMAKE_CURRENT_BINARY_DIR}/lid -name "abrt_checker_*.log"`
+    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_test(test_log_file_in_directory make run_log_file_in_directory)
+
+add_custom_target(
+    run_default_no_log_file
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME} Test || test -z "`find -name abrt_checker_*.log`"
+    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_test(test_default_no_log_file make run_default_no_log_file)
 
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
