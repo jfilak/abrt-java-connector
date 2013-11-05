@@ -236,7 +236,7 @@ _add_test(run_cut_reason_message 2)
 
 add_custom_target(
     run_thread_stress
-    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=caught=java.lang.ArrayIndexOutOfBoundsException,output= ThreadStressTest
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=caught=java.lang.ArrayIndexOutOfBoundsException,journald=no ThreadStressTest
     DEPENDS ${TEST_JAVA_TARGETS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
