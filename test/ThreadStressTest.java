@@ -46,22 +46,29 @@ public class ThreadStressTest {
 
         List<Thread> tojoin = new LinkedList<Thread>();
 
-        for (int i = 100; i != 0; --i) {
-            for (int j = 300; j != 0; --j) {
-                Thread t = new ThreadCaughtException();
-                tojoin.add(t);
-                System.out.println("Starting Thread: " + Integer.toString((i * j) + j));
-                t.start();
+        for (int i = 60; i != 0; --i) {
+            for (int j = 600; j != 0; --j) {
+                try {
+                    Thread t = new ThreadCaughtException();
+                    tojoin.add(t);
+                    System.out.println("Starting Thread: " + Integer.toString((i * j) + j));
+                    t.start();
+                }
+                catch(Throwable t) {
+                    System.out.println("Thread start: " + t.toString());
+                    System.exit(1);
+                }
             }
 
             try {
-                Thread.currentThread().sleep(1000);
+                Thread.currentThread().sleep(500);
             }
             catch (InterruptedException ex) {
                 System.out.println("Interrupted");
             }
         }
 
+        System.out.println("All Threads Started");
         for (Thread t : tojoin) {
             try {
                 t.join();
@@ -71,6 +78,7 @@ public class ThreadStressTest {
             }
         }
 
+        System.out.println("All Threads Finished");
         System.exit(0);
     }
 }
