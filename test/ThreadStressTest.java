@@ -1,5 +1,6 @@
 import java.io.*;
 import java.util.*;
+import java.util.regex.*;
 import java.net.*;
 
 
@@ -7,7 +8,7 @@ import java.net.*;
  * @author Jakub Filak &lt;jfilak@redhat.com&gt;
  */
 
-class ThreadCaughtException extends Thread {
+class StressThreadCaughtException extends Thread {
     private void level_three() {
         SimpleTest.throwAndCatchAllExceptions();
     }
@@ -42,14 +43,38 @@ public class ThreadStressTest {
      * Entry point to this multi thread test.
      */
     public static void main(String args[]) {
+        int repeats = 60;
+        int threads = 600;
+
+        for (String arg : args) {
+            Scanner s = new Scanner(arg);
+            s.findInLine("^([^=]+)=(\\d+)$");
+            MatchResult r = s.match();
+            if (r.groupCount() != 2) {
+                System.err.println("Invalid argument format [reps|threads=number]: '" + arg + "'");
+                System.exit(1);
+            }
+            switch (r.group(1)) {
+                case "reps":
+                    repeats = Integer.parseInt(r.group(2));
+                    break;
+                case "threads":
+                    threads = Integer.parseInt(r.group(2));
+                    break;
+                default:
+                    System.err.println("Unknown argument '" + r.group(1) + "'");
+                    System.exit(1);
+                    break;
+            }
+        }
+
         System.out.println("Test.java");
 
         List<Thread> tojoin = new LinkedList<Thread>();
-
-        for (int i = 60; i != 0; --i) {
-            for (int j = 600; j != 0; --j) {
+        for (int i = repeats; i != 0; --i) {
+            for (int j = threads; j != 0; --j) {
                 try {
-                    Thread t = new ThreadCaughtException();
+                    Thread t = new StressThreadCaughtException();
                     tojoin.add(t);
                     System.out.println("Starting Thread: " + Integer.toString((i * j) + j));
                     t.start();
