@@ -1865,7 +1865,7 @@ static void print_one_method_from_stack(
             char           *stack_trace_str)
 {
     jvmtiError  error_code;
-    jclass      declaring_class;
+    jclass      declaring_class = NULL;
     char       *method_name = "";
     char       *declaring_class_name = "";
 
@@ -2011,15 +2011,15 @@ static void JNICALL callback_on_exception(
 {
     jvmtiError error_code;
 
-    char *method_name_ptr;
-    char *method_signature_ptr;
-    char *class_name_ptr;
-    char *class_signature_ptr;
-    char *exception_name_ptr;
-    char *updated_exception_name_ptr;
+    char *method_name_ptr = NULL;
+    char *method_signature_ptr = NULL;
+    char *class_name_ptr = NULL;
+    char *class_signature_ptr = NULL;
+    char *exception_name_ptr = NULL;
+    char *updated_exception_name_ptr = NULL;
 
-    jclass method_class;
-    jclass exception_class;
+    jclass method_class = NULL;
+    jclass exception_class = NULL;
 
     /* all operations should be processed in critical section */
     enter_critical_section(jvmti_env, shared_lock);
@@ -2030,10 +2030,39 @@ static void JNICALL callback_on_exception(
     exception_class = (*jni_env)->GetObjectClass(jni_env, exception_object);
 
     /* retrieve all required informations */
-    (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
-    (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &method_class);
-    (*jvmti_env)->GetClassSignature(jvmti_env, method_class, &class_signature_ptr, NULL);
-    (*jvmti_env)->GetClassSignature(jvmti_env, exception_class, &exception_name_ptr, NULL);
+    error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
+    check_jvmti_error(jvmti_env, error_code, "get method name");
+
+    /* should not happen in normal circumstances :-) */
+    if (method_name_ptr == NULL || method_signature_ptr == NULL)
+    {
+        exit_critical_section(jvmti_env, shared_lock);
+        return;
+    }
+
+    error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &method_class);
+    check_jvmti_error(jvmti_env, error_code, "get method declaring class");
+
+    if (method_class == NULL)
+    {
+        /* cleapup */
+        if (method_name_ptr != NULL)
+        {
+            error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_name_ptr);
+            check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+        }
+        if (method_signature_ptr != NULL)
+        {
+            error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_signature_ptr);
+            check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+        }
+        exit_critical_section(jvmti_env, shared_lock);
+    }
+
+    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, method_class, &class_signature_ptr, NULL);
+    check_jvmti_error(jvmti_env, error_code, "get class signature");
+    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, exception_class, &exception_name_ptr, NULL);
+    check_jvmti_error(jvmti_env, error_code, "get class signature");
 
     /* readable class names */
     class_name_ptr = format_class_name(class_signature_ptr, '.');
@@ -2131,26 +2160,43 @@ static void JNICALL callback_on_exception_catch(
 {
     jvmtiError error_code;
 
-    char *method_name_ptr;
-    char *method_signature_ptr;
-    char *class_signature_ptr;
+    char *method_name_ptr = NULL;
+    char *method_signature_ptr = NULL;
+    char *class_signature_ptr = NULL;
 
-    jclass class;
+    jclass class = NULL;
 
     /* all operations should be processed in critical section */
     enter_critical_section(jvmti_env, shared_lock);
 
     /* retrieve all required informations */
-    (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
-    (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
-    (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature_ptr, NULL);
+    error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
+    check_jvmti_error(jvmti_env, error_code, "get method name");
 
+    /* should not happen in normal circumstances :-) */
+    if (method_name_ptr == NULL || method_signature_ptr == NULL)
+    {
+        exit_critical_section(jvmti_env, shared_lock);
+        return;
+    }
+
+    error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
+    check_jvmti_error(jvmti_env, error_code, "get method declaring class");
+
+    if (class != NULL)
+    {
+        error_code = (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature_ptr, NULL);
+        check_jvmti_error(jvmti_env, error_code, "get class signature");
+
+        if (class_signature_ptr != NULL)
+        {
 #ifdef VERBOSE
-    /* readable class name */
-    char *class_name_ptr = format_class_name(class_signature_ptr, '.');
+            /* readable class name */
+            char *class_name_ptr = format_class_name(class_signature_ptr, '.');
 #endif
-
-    VERBOSE_PRINT("An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+            VERBOSE_PRINT("An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+        }
+    }
 
     /* cleapup */
     if (method_name_ptr != NULL)
@@ -2187,7 +2233,7 @@ static void JNICALL callback_on_object_alloc(
             jclass object_klass,
             jlong size)
 {
-    char *signature_ptr;
+    char *signature_ptr = NULL;
 
     enter_critical_section(jvmti_env, shared_lock);
     (*jvmti_env)->GetClassSignature(jvmti_env, object_klass, &signature_ptr, NULL);
@@ -2276,21 +2322,32 @@ static void JNICALL callback_on_compiled_method_load(
     char* signature = NULL;
     char* generic_ptr = NULL;
     char* class_signature = NULL;
-    jclass class;
+    jclass class = NULL;
 
     enter_critical_section(jvmti_env, shared_lock);
 
     error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &name, &signature, &generic_ptr);
     check_jvmti_error(jvmti_env, error_code, "get method name");
 
+    /* should not happen in normal circumstances :-) */
+    if (name == NULL || signature == NULL)
+    {
+        exit_critical_section(jvmti_env, shared_lock);
+        return;
+    }
+
     error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
     check_jvmti_error(jvmti_env, error_code, "get method declaring class");
-    (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature, NULL);
 
-    INFO_PRINT("Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
-        class_signature == NULL ? "" : class_signature,
-        name, signature,
-        generic_ptr == NULL ? "" : generic_ptr, (int)code_size);
+    if (class != NULL)
+    {
+        error_code = (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature, NULL);
+        check_jvmti_error(jvmti_env, error_code, "get class signature");
+        INFO_PRINT("Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
+            class_signature == NULL ? "" : class_signature,
+            name, signature,
+            generic_ptr == NULL ? "" : generic_ptr, (int)code_size);
+    }
 
     if (name != NULL)
     {
