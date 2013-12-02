@@ -1,6 +1,17 @@
 README
 ------
 
+ABRT Java Connector is a JVM agent which reports a Java exceptions to ABRT. The
+agent can report both caught and uncaught exceptions but by default it reports
+only uncaught exceptions. In order to be able to report even uncaught
+exceptions, the agent must register several JVMTI event callbacks and the
+processing inside of those callbacks have not-insignificant impact on the
+performance of an entire application.
+
+
+Usage
+-----
+
 It needs to be compiled as a shared native library (.so) and then loaded into
 JVM using -agentlib command line parameter.
 
