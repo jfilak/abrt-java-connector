@@ -573,6 +573,9 @@ static void print_jvmti_error(
     (void)(*jvmti_env)->GetErrorName(jvmti_env, error_code, &errnum_str);
     msg_err = errnum_str == NULL ? "Unknown" : errnum_str;
     fprintf(stderr, "ERROR: JVMTI: %d(%s): %s\n", error_code, msg_err, msg_str);
+
+    if (NULL != errnum_str)
+        (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)errnum_str);
 }
 
 
@@ -1547,6 +1550,7 @@ static jclass find_class_in_loaded_class(
             JNIEnv     *jni_env,
             const char *searched_class_name)
 {
+    jclass result = NULL;
     jint num_classes = 0;
     jclass *loaded_classes;
     jvmtiError error = (*jvmti_env)->GetLoadedClasses(jvmti_env, &num_classes, &loaded_classes);
@@ -1559,7 +1563,7 @@ static jclass find_class_in_loaded_class(
     if (NULL == class_class)
     {
         VERBOSE_PRINT("Cannot find java/lang/Class class");
-        return NULL;
+        goto find_class_in_loaded_class_cleanup;
     }
 
     jmethodID get_name_method = (*jni_env)->GetMethodID(jni_env, class_class, "getName", "()Ljava/lang/String;");
@@ -1567,10 +1571,9 @@ static jclass find_class_in_loaded_class(
     {
         VERBOSE_PRINT("Cannot find java.lang.Class.getName.()Ljava/lang/String;");
         (*jni_env)->DeleteLocalRef(jni_env, class_class);
-        return NULL;
+        goto find_class_in_loaded_class_cleanup;
     }
 
-    jclass result = NULL;
     for (jint i = 0; NULL == result && i < num_classes; ++i)
     {
         jobject class_name = (*jni_env)->CallObjectMethod(jni_env, loaded_classes[i], get_name_method);
@@ -1590,7 +1593,10 @@ static jclass find_class_in_loaded_class(
         (*jni_env)->DeleteLocalRef(jni_env, class_name);
     }
 
-    /* Not calling DeleteLocalRef() on items in loaded_classes. Hopefully they will be deleted automatically */
+find_class_in_loaded_class_cleanup:
+    if (NULL != loaded_classes)
+        (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)loaded_classes);
+
     return result;
 }
 
@@ -1866,8 +1872,9 @@ static void print_one_method_from_stack(
 {
     jvmtiError  error_code;
     jclass      declaring_class;
-    char       *method_name = "";
-    char       *declaring_class_name = "";
+    char       *method_name = NULL;
+    char       *declaring_class_name = NULL;
+    char       *source_file_name = NULL;
 
     error_code = (*jvmti_env)->GetMethodName(jvmti_env, stack_frame.method, &method_name, NULL, NULL);
     if (error_code != JVMTI_ERROR_NONE)
@@ -1875,9 +1882,12 @@ static void print_one_method_from_stack(
         return;
     }
     error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, stack_frame.method, &declaring_class);
-    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto print_one_method_from_stack_cleanup;
+
     error_code = (*jvmti_env)->GetClassSignature(jvmti_env, declaring_class, &declaring_class_name, NULL);
-    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto print_one_method_from_stack_cleanup;
 
     if (error_code != JVMTI_ERROR_NONE)
     {
@@ -1885,11 +1895,11 @@ static void print_one_method_from_stack(
     }
     char *updated_class_name = format_class_name_for_JNI_call(declaring_class_name);
     int line_number = get_line_number(jvmti_env, stack_frame.method, stack_frame.location);
-    char *source_file_name;
     if (declaring_class != NULL)
     {
         error_code = (*jvmti_env)->GetSourceFileName(jvmti_env, declaring_class, &source_file_name);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+        if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+            goto print_one_method_from_stack_cleanup;
     }
 
     char buf[1000];
@@ -1919,15 +1929,21 @@ static void print_one_method_from_stack(
     }
 #endif
 
+print_one_method_from_stack_cleanup:
     /* cleanup */
-    if (method_name != NULL)
+    if (NULL != method_name)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)method_name);
         check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
-    if (declaring_class_name != NULL)
+    if (NULL != declaring_class_name)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)declaring_class_name);
+        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+    }
+    if (NULL != source_file_name)
+    {
+        error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)source_file_name);
         check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
     }
 }
@@ -1950,7 +1966,7 @@ static char *generate_stack_trace(
 
     char  *stack_trace_str;
     char  buf[1000];
-    int count;
+    int count = -1;
     int i;
 
     /* allocate string which will contain stack trace */
@@ -1963,12 +1979,10 @@ static char *generate_stack_trace(
 
     /* get stack trace */
     error_code = (*jvmti_env)->GetStackTrace(jvmti_env, thread, 0, MAX_STACK_TRACE_DEPTH, stack_frames, &count);
-    check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
-
     VERBOSE_PRINT("Number of records filled: %d\n", count);
-
-    /* is stack trace empty? */
-    if (count < 1)
+    /* error or is stack trace empty? */
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__))
+            || count < 1)
     {
         free(stack_trace_str);
         return NULL;
@@ -2011,12 +2025,12 @@ static void JNICALL callback_on_exception(
 {
     jvmtiError error_code;
 
-    char *method_name_ptr;
-    char *method_signature_ptr;
-    char *class_name_ptr;
-    char *class_signature_ptr;
-    char *exception_name_ptr;
-    char *updated_exception_name_ptr;
+    char *method_name_ptr = NULL;
+    char *method_signature_ptr = NULL;
+    char *class_name_ptr = NULL;
+    char *class_signature_ptr = NULL;
+    char *exception_name_ptr = NULL;
+    char *updated_exception_name_ptr = NULL;
 
     jclass method_class;
     jclass exception_class;
@@ -2030,10 +2044,21 @@ static void JNICALL callback_on_exception(
     exception_class = (*jni_env)->GetObjectClass(jni_env, exception_object);
 
     /* retrieve all required informations */
-    (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
-    (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &method_class);
-    (*jvmti_env)->GetClassSignature(jvmti_env, method_class, &class_signature_ptr, NULL);
-    (*jvmti_env)->GetClassSignature(jvmti_env, exception_class, &exception_name_ptr, NULL);
+    error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto callback_on_exception_cleanup;
+
+    error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &method_class);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto callback_on_exception_cleanup;
+
+    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, method_class, &class_signature_ptr, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto callback_on_exception_cleanup;
+
+    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, exception_class, &exception_name_ptr, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto callback_on_exception_cleanup;
 
     /* readable class names */
     class_name_ptr = format_class_name(class_signature_ptr, '.');
@@ -2090,6 +2115,7 @@ static void JNICALL callback_on_exception(
         }
     }
 
+callback_on_exception_cleanup:
     /* cleapup */
     if (method_name_ptr != NULL)
     {
@@ -2131,9 +2157,9 @@ static void JNICALL callback_on_exception_catch(
 {
     jvmtiError error_code;
 
-    char *method_name_ptr;
-    char *method_signature_ptr;
-    char *class_signature_ptr;
+    char *method_name_ptr = NULL;
+    char *method_signature_ptr = NULL;
+    char *class_signature_ptr = NULL;
 
     jclass class;
 
@@ -2141,9 +2167,17 @@ static void JNICALL callback_on_exception_catch(
     enter_critical_section(jvmti_env, shared_lock);
 
     /* retrieve all required informations */
-    (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
-    (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
-    (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature_ptr, NULL);
+    error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto callback_on_exception_catch_cleanup;
+
+    error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto callback_on_exception_catch_cleanup;
+
+    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature_ptr, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        goto callback_on_exception_catch_cleanup;
 
 #ifdef VERBOSE
     /* readable class name */
@@ -2152,6 +2186,7 @@ static void JNICALL callback_on_exception_catch(
 
     VERBOSE_PRINT("An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
 
+callback_on_exception_catch_cleanup:
     /* cleapup */
     if (method_name_ptr != NULL)
     {
@@ -2187,15 +2222,18 @@ static void JNICALL callback_on_object_alloc(
             jclass object_klass,
             jlong size)
 {
-    char *signature_ptr;
+    char *signature_ptr = NULL;
 
     enter_critical_section(jvmti_env, shared_lock);
-    (*jvmti_env)->GetClassSignature(jvmti_env, object_klass, &signature_ptr, NULL);
+    jvmtiError error_code = (*jvmti_env)->GetClassSignature(jvmti_env, object_klass, &signature_ptr, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        return;
 
     if (size >= VM_MEMORY_ALLOCATION_THRESHOLD)
     {
         INFO_PRINT("object allocation: instance of class %s, allocated %ld bytes\n", signature_ptr, (long int)size);
     }
+
     (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)signature_ptr);
     exit_critical_section(jvmti_env, shared_lock);
 }
@@ -2281,17 +2319,23 @@ static void JNICALL callback_on_compiled_method_load(
     enter_critical_section(jvmti_env, shared_lock);
 
     error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &name, &signature, &generic_ptr);
-    check_jvmti_error(jvmti_env, error_code, "get method name");
+    if (check_jvmti_error(jvmti_env, error_code, "get method name"))
+        goto callback_on_compiled_method_load_cleanup;
 
     error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
-    check_jvmti_error(jvmti_env, error_code, "get method declaring class");
-    (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, "get method declaring class"))
+        goto callback_on_compiled_method_load_cleanup;
+
+    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, "get method name"))
+        goto callback_on_compiled_method_load_cleanup;
 
     INFO_PRINT("Compiling method: %s.%s with signature %s %s   Code size: %5d\n",
         class_signature == NULL ? "" : class_signature,
         name, signature,
         generic_ptr == NULL ? "" : generic_ptr, (int)code_size);
 
+callback_on_compiled_method_load_cleanup:
     if (name != NULL)
     {
         error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char*)name);
@@ -2533,11 +2577,13 @@ jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env __UNUSED_VAR)
     jint cmajor, cminor, cmicro;
 
     error_code = (*jvmti_env)->GetVersionNumber(jvmti_env, &version);
-
-    cmajor = (version & JVMTI_VERSION_MASK_MAJOR) >> JVMTI_VERSION_SHIFT_MAJOR;
-    cminor = (version & JVMTI_VERSION_MASK_MINOR) >> JVMTI_VERSION_SHIFT_MINOR;
-    cmicro = (version & JVMTI_VERSION_MASK_MICRO) >> JVMTI_VERSION_SHIFT_MICRO;
-    printf("Compile Time JVMTI Version: %d.%d.%d (0x%08x)\n", cmajor, cminor, cmicro, version);
+    if (!check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+    {
+        cmajor = (version & JVMTI_VERSION_MASK_MAJOR) >> JVMTI_VERSION_SHIFT_MAJOR;
+        cminor = (version & JVMTI_VERSION_MASK_MINOR) >> JVMTI_VERSION_SHIFT_MINOR;
+        cmicro = (version & JVMTI_VERSION_MASK_MICRO) >> JVMTI_VERSION_SHIFT_MICRO;
+        printf("Compile Time JVMTI Version: %d.%d.%d (0x%08x)\n", cmajor, cminor, cmicro, version);
+    }
 
     return error_code;
 #else
