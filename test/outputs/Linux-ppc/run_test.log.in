@@ -5,6 +5,7 @@ Exception in thread "main" java.io.FileNotFoundException: _wrong_file_ (No such 
 	at Test.readWrongFile(Test.java:89) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.fileRelatedIssues(Test.java:461) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:513) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.io.FileNotFoundException in method java.io.FileInputStream.<init>()
 Exception in thread "main" java.io.FileNotFoundException: /root/.bashrc (Permission denied)
 	at java.io.FileInputStream.open(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
@@ -12,6 +13,7 @@ Exception in thread "main" java.io.FileNotFoundException: /root/.bashrc (Permiss
 	at Test.readUnreadableFile(Test.java:111) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.fileRelatedIssues(Test.java:462) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:513) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.io.FileNotFoundException in method java.io.FileOutputStream.<init>()
 Exception in thread "main" java.io.FileNotFoundException: /root/.bashrc (Permission denied)
 	at java.io.FileOutputStream.open(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileOutputStream.class]
@@ -20,6 +22,7 @@ Exception in thread "main" java.io.FileNotFoundException: /root/.bashrc (Permiss
 	at Test.writeToUnwritableFile(Test.java:134) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.fileRelatedIssues(Test.java:463) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:513) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.lang.NumberFormatException in method java.lang.Integer.parseInt()
 Exception in thread "main" java.lang.NumberFormatException: null
 	at java.lang.Integer.parseInt(Integer.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/Integer.class]
@@ -38,6 +41,7 @@ Exception in thread "main" java.lang.NumberFormatException: null
 	at Test.readFromUnknownHost(Test.java:157) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:473) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.net.UnknownHostException in method java.net.InetAddress$1.lookupAllHostAddr()
 Exception in thread "main" java.net.UnknownHostException: xyzzy: Name or service not known
 	at java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/Inet6AddressImpl.class]
@@ -52,6 +56,7 @@ Exception in thread "main" java.net.UnknownHostException: xyzzy: Name or service
 	at Test.readFromUnknownHost(Test.java:157) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:473) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.net.UnknownHostException in method java.net.AbstractPlainSocketImpl.connect()
 Exception in thread "main" java.net.UnknownHostException: xyzzy
 	at java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/AbstractPlainSocketImpl.class]
@@ -63,6 +68,7 @@ Exception in thread "main" java.net.UnknownHostException: xyzzy
 	at Test.readFromUnknownHost(Test.java:157) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:473) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.net.ConnectException in method java.net.AbstractPlainSocketImpl.doConnect()
 Exception in thread "main" java.net.ConnectException: Connection refused
 	at java.net.PlainSocketImpl.socketConnect(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/PlainSocketImpl.class]
@@ -77,6 +83,7 @@ Exception in thread "main" java.net.ConnectException: Connection refused
 	at Test.readFromSocket(Test.java:177) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:474) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.lang.NumberFormatException in method java.lang.Long.parseLong()
 Exception in thread "main" java.lang.NumberFormatException: null
 	at java.lang.Long.parseLong(Long.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/Long.class]
@@ -86,6 +93,7 @@ Exception in thread "main" java.lang.NumberFormatException: null
 	at Test.readFromURL(Test.java:237) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:475) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.io.FileNotFoundException in method sun.net.www.protocol.http.HttpURLConnection.getInputStream()
 Exception in thread "main" java.io.FileNotFoundException: http://localhost:54321/_this_does_not_exists_
 	at sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/net/www/protocol/http/HttpURLConnection.class]
@@ -93,6 +101,7 @@ Exception in thread "main" java.io.FileNotFoundException: http://localhost:54321
 	at Test.readFromURL(Test.java:237) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:475) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.net.MalformedURLException in method java.net.URL.<init>()
 Exception in thread "main" java.net.MalformedURLException: no protocol: @#$%^&malformed URL@#$%^&*()
 	at java.net.URL.<init>(URL.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/URL.class]
@@ -101,12 +110,14 @@ Exception in thread "main" java.net.MalformedURLException: no protocol: @#$%^&ma
 	at Test.malformedURL(Test.java:194) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:476) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.lang.ArrayIndexOutOfBoundsException in method Test.throwIndexOutOfBoundsException()
 Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: 42
 	at Test.throwIndexOutOfBoundsException(Test.java:266) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.catchIndexOutOfBoundsException(Test.java:347) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.throwAndCatchAllExceptions(Test.java:486) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:515) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.lang.StringIndexOutOfBoundsException in method java.lang.String.charAt()
 Exception in thread "main" java.lang.StringIndexOutOfBoundsException: String index out of range: -1
 	at java.lang.String.charAt(String.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/String.class]
@@ -114,18 +125,21 @@ Exception in thread "main" java.lang.StringIndexOutOfBoundsException: String ind
 	at Test.catchStringIndexOutOfBoundsException(Test.java:362) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.throwAndCatchAllExceptions(Test.java:487) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:515) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.lang.NullPointerException in method Test.throwNullPointerException()
 Exception in thread "main" java.lang.NullPointerException
 	at Test.throwNullPointerException(Test.java:290) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.catchNullPointerException(Test.java:377) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.throwAndCatchAllExceptions(Test.java:488) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:515) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.lang.ClassCastException in method Test.throwClassCastException()
 Exception in thread "main" java.lang.ClassCastException: java.lang.Integer cannot be cast to java.lang.String
 	at Test.throwClassCastException(Test.java:302) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.catchClassCastException(Test.java:392) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.throwAndCatchAllExceptions(Test.java:489) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:515) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.lang.UnsatisfiedLinkError in method java.lang.Runtime.load0()
 Exception in thread "main" java.lang.UnsatisfiedLinkError: Expecting an absolute path of the library: xyzzy
 	at java.lang.Runtime.load0(Runtime.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/Runtime.class]
@@ -134,6 +148,7 @@ Exception in thread "main" java.lang.UnsatisfiedLinkError: Expecting an absolute
 	at Test.catchUnsatisfiedLinkErrorUserLibrary(Test.java:422) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.throwAndCatchAllExceptions(Test.java:491) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:515) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.lang.UnsatisfiedLinkError in method java.lang.ClassLoader.loadLibrary()
 Exception in thread "main" java.lang.UnsatisfiedLinkError: no xyzzy in java.library.path
 	at java.lang.ClassLoader.loadLibrary(ClassLoader.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/ClassLoader.class]
@@ -147,4 +162,5 @@ Uncaught exception java.lang.NullPointerException in method Test.throwNullPointe
 Exception in thread "main" java.lang.NullPointerException
 	at Test.throwNullPointerException(Test.java:290) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.throwAndDontCatchException(Test.java:501) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 	at Test.main(Test.java:518) [file:@CMAKE_BINARY_DIR@/test/Test.class]

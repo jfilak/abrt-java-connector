@@ -57,32 +57,51 @@ public class RemoteTest {
      * Entry point to this simple test.
      */
     public static void main(String args[]) throws IOException, NoSuchMethodException, MalformedURLException, IllegalAccessException, ClassNotFoundException, InvocationTargetException {
+        String testClassName = "SimpleTest";
+        Class testClassInstance = null;
+
+        if (args.length == 2) {
+            testClassName = args[1];
+        }
+        else if (args.length > 2) {
+            System.out.println("Accepts either none or one argument.");
+            System.exit(1);
+        }
+
         HttpServer server = HttpServer.create(new InetSocketAddress(54321), 0);
         server.createContext("/", new JarGetter(args[0]));
         server.setExecutor(null); // creates a default executor
         server.start();
 
-        Class simpleTestClass = null;
-
         try {
             Method method = URLClassLoader.class.getDeclaredMethod("addURL", new Class[]{URL.class});
             method.setAccessible(true);
             method.invoke(ClassLoader.getSystemClassLoader(), new Object[]{new URL("http://localhost:54321/JarTest.jar")});
-            simpleTestClass = Class.forName("SimpleTest");
+
+            /* Loaded these classes into cache. */
+            final String needed[] = {"SimpleTest", "ThreadUncaughtException", "ThreadCaughtException"};
+            for (String requiredClass : needed) {
+                if (null == Class.forName(requiredClass)) {
+                    System.out.println("Cannot get required class: " + requiredClass);
+                    System.exit(1);
+                }
+            }
+
+            testClassInstance = Class.forName(testClassName);
         }
         finally {
             server.stop(0);
         }
 
-        if (null == simpleTestClass) {
-            System.out.println("Cannot get SimpleTest class ...");
+        if (null == testClassInstance) {
+            System.out.println("Cannot get " + testClassName + ".class ...");
             System.exit(1);
         }
 
         System.out.println("RemoteTest.java " + args[0]);
-        simpleTestClass.getMethod("throwAndCatchAllExceptions").invoke(null);
+        testClassInstance.getMethod("throwAndCatchAllExceptions").invoke(null);
         System.out.println("continue...");
-        simpleTestClass.getMethod("throwAndDontCatchException").invoke(null);
+        testClassInstance.getMethod("throwAndDontCatchException").invoke(null);
         System.out.println("If everything works we should not see this message :)");
         System.exit(0);
     }

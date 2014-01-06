@@ -7,3 +7,4 @@ Exception in thread "main" java.lang.ClassNotFoundException: MissingClassTest
 	at java.lang.ClassLoader.loadClass(ClassLoader.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/ClassLoader.class]
 	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/misc/Launcher$AppClassLoader.class]
 	at java.lang.ClassLoader.loadClass(ClassLoader.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/ClassLoader.class]
+executable: JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar
