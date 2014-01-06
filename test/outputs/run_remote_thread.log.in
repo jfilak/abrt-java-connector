@@ -1,0 +1,13 @@
+Caught exception java.lang.ArrayIndexOutOfBoundsException in method SimpleTest.throwIndexOutOfBoundsException()
+Exception in thread "Thread-3" java.lang.ArrayIndexOutOfBoundsException: 42
+	at SimpleTest.throwIndexOutOfBoundsException(SimpleTest.java:24) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at SimpleTest.catchIndexOutOfBoundsException(SimpleTest.java:47) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at SimpleTest.throwAndCatchAllExceptions(SimpleTest.java:61) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at ThreadCaughtException.run(ThreadCaughtException.java:7) [jar:http://localhost:54321/JarTest.jar!/ThreadCaughtException.class]
+executable: http://localhost:54321/JarTest.jar
+Uncaught exception java.lang.NullPointerException in method SimpleTest.throwNullPointerException()
+Exception in thread "Thread-4" java.lang.NullPointerException
+	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at SimpleTest.throwAndDontCatchException(SimpleTest.java:71) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
+	at ThreadUncaughtException.run(ThreadUncaughtException.java:7) [jar:http://localhost:54321/JarTest.jar!/ThreadUncaughtException.class]
+executable: http://localhost:54321/JarTest.jar

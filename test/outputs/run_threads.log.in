@@ -3,9 +3,11 @@ Exception in thread "Thread-0" java.lang.ArrayIndexOutOfBoundsException: 42
 	at SimpleTest.throwIndexOutOfBoundsException(SimpleTest.java:24) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.catchIndexOutOfBoundsException(SimpleTest.java:47) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.throwAndCatchAllExceptions(SimpleTest.java:61) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
-	at ThreadCaughtException.run(MultiThreadTest.java:13) [file:@CMAKE_BINARY_DIR@/test/ThreadCaughtException.class]
+	at ThreadCaughtException.run(ThreadCaughtException.java:7) [file:@CMAKE_BINARY_DIR@/test/ThreadCaughtException.class]
+executable: @CMAKE_BINARY_DIR@/test/ThreadCaughtException.class
 Uncaught exception java.lang.NullPointerException in method SimpleTest.throwNullPointerException()
 Exception in thread "Thread-1" java.lang.NullPointerException
 	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.throwAndDontCatchException(SimpleTest.java:71) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
-	at ThreadUncaughtException.run(MultiThreadTest.java:19) [file:@CMAKE_BINARY_DIR@/test/ThreadUncaughtException.class]
+	at ThreadUncaughtException.run(ThreadUncaughtException.java:7) [file:@CMAKE_BINARY_DIR@/test/ThreadUncaughtException.class]
+executable: @CMAKE_BINARY_DIR@/test/ThreadUncaughtException.class

@@ -10,3 +10,4 @@ Exception in thread "main" java.lang.ClassNotFoundException: foobar
 	at java.lang.Class.forName0(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/Class.class]
 	at java.lang.Class.forName(Class.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/Class.class]
 	at BadClassTest.main(BadClassTest.java:13) [file:@CMAKE_BINARY_DIR@/test/BadClassTest.class]
+executable: @CMAKE_BINARY_DIR@/test/BadClassTest.class

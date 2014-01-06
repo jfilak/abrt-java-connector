@@ -4,8 +4,10 @@ Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: 42
 	at SimpleTest.catchIndexOutOfBoundsException(SimpleTest.java:47) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.throwAndCatchAllExceptions(SimpleTest.java:61) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.main(SimpleTest.java:81) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
+executable: @CMAKE_BINARY_DIR@/test/SimpleTest.class
 Uncaught exception java.lang.NullPointerException in method SimpleTest.throwNullPointerException()
 Exception in thread "main" java.lang.NullPointerException
 	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.throwAndDontCatchException(SimpleTest.java:71) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.main(SimpleTest.java:83) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
+executable: @CMAKE_BINARY_DIR@/test/SimpleTest.class

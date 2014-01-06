@@ -520,6 +520,7 @@ static void register_abrt_event(
  * Report a stack trace to all systems
  */
 static void report_stacktrace(
+        const char *executable,
         const char *message,
         const char *stacktrace,
         int sure_unique)
@@ -546,11 +547,15 @@ static void report_stacktrace(
     {
         log_print("%s", stacktrace);
     }
+    if (executable)
+    {
+        log_print("executable: %s\n", executable);
+    }
 
     if (NULL != stacktrace && sure_unique)
     {
         VERBOSE_PRINT("Reporting stack trace to ABRT");
-        register_abrt_event(processProperties.main_class, message, stacktrace);
+        register_abrt_event(executable, message, stacktrace);
     }
 }
 
@@ -967,19 +972,16 @@ static char * create_updated_class_name(char *class_name)
  * Solution for JAR-style URI:
  * file:/home/tester/abrt_connector/bin/JarTest.jar!/SimpleTest.class
  */
-static char * stripped_path_to_main_class(char *path_to_main_class)
+static char *extract_fs_path(char *url_path)
 {
-    /* strip "file:" from the beginning */
-    char *out = path_to_main_class + sizeof("file:") - 1;
+    char *jar_sfx = strstr(url_path, ".jar!");
+    if (NULL != jar_sfx)
+        jar_sfx[sizeof(".jar") - 1] = '\0';
 
-    char *excl = strchr(out, '!');
+    if (strncmp("file:", url_path, sizeof("file:") - 1) == 0)
+        memmove(url_path, url_path + (sizeof("file:") - 1), 2 + strlen(url_path) - sizeof("file:"));
 
-    /* strip everything after '!' */
-    if (excl != NULL)
-    {
-        *excl = 0;
-    }
-    return out;
+    return url_path;
 }
 
 
@@ -1053,16 +1055,7 @@ static char *get_main_class(
         return UNKNOWN_CLASS_NAME;
     }
 
-    /* Solution for JAR-style URI:
-     * file:/home/tester/abrt_connector/bin/JarTest.jar!/SimpleTest.class
-     */
-    if (strncpy("file:", path_to_class, sizeof("file:") == 0))
-    {
-        return stripped_path_to_main_class(path_to_class);
-    }
-
-    /* path_to_class is allocated on heap -> ok to return this pointer */
-    return path_to_class;
+    return extract_fs_path(path_to_class);
 }
 
 
@@ -1610,7 +1603,8 @@ static int print_stack_trace_element(
             JNIEnv         *jni_env,
             jobject         stack_frame,
             char           *stack_trace_str,
-            unsigned        max_length)
+            unsigned        max_length,
+            char           **class_fs_path)
 {
     jclass stack_frame_class = (*jni_env)->GetObjectClass(jni_env, stack_frame);
     jmethodID get_class_name_method = (*jni_env)->GetMethodID(jni_env, stack_frame_class, "getClassName", "()Ljava/lang/String;");
@@ -1654,6 +1648,14 @@ static int print_stack_trace_element(
         if (updated_cls_name_str != NULL)
         {
             class_location = get_path_to_class(jvmti_env, jni_env, class_of_frame_method, updated_cls_name_str, TO_EXTERNAL_FORM_METHOD_NAME);
+
+            if (NULL != class_fs_path)
+            {
+                *class_fs_path = get_path_to_class(jvmti_env, jni_env, class_of_frame_method, updated_cls_name_str, GET_PATH_METHOD_NAME);
+                if (NULL != *class_fs_path)
+                    *class_fs_path = extract_fs_path(*class_fs_path);
+            }
+
             free(updated_cls_name_str);
         }
         (*jni_env)->DeleteLocalRef(jni_env, class_of_frame_method);
@@ -1704,7 +1706,8 @@ static int print_exception_stack_trace(
             JNIEnv   *jni_env,
             jobject   exception,
             char     *stack_trace_str,
-            size_t    max_stack_trace_lenght)
+            size_t    max_stack_trace_lenght,
+            char     **executable)
 {
 
     jclass exception_class = (*jni_env)->GetObjectClass(jni_env, exception);
@@ -1769,7 +1772,14 @@ static int print_exception_stack_trace(
     for (jint i = 0; i < array_size; ++i)
     {
         jobject frame_element = (*jni_env)->GetObjectArrayElement(jni_env, stack_trace_array, i);
-        const int frame_wrote = print_stack_trace_element(jvmti_env, jni_env, frame_element, stack_trace_str + wrote, max_stack_trace_lenght - wrote);
+
+        const int frame_wrote = print_stack_trace_element(jvmti_env,
+                jni_env,
+                frame_element,
+                stack_trace_str + wrote,
+                max_stack_trace_lenght - wrote,
+                ((NULL != executable && array_size - 1 == i) ? executable : NULL));
+
         (*jni_env)->DeleteLocalRef(jni_env, frame_element);
 
         if (frame_wrote <= 0)
@@ -1791,7 +1801,8 @@ static char *generate_thread_stack_trace(
             jvmtiEnv *jvmti_env,
             JNIEnv   *jni_env,
             char     *thread_name,
-            jobject  exception)
+            jobject  exception,
+            char     **executable)
 {
     char  *stack_trace_str;
     /* allocate string which will contain stack trace */
@@ -1803,7 +1814,13 @@ static char *generate_thread_stack_trace(
     }
 
     int wrote = snprintf(stack_trace_str, MAX_STACK_TRACE_STRING_LENGTH, "Exception in thread \"%s\" ", thread_name);
-    int exception_wrote = print_exception_stack_trace(jvmti_env, jni_env, exception, stack_trace_str + wrote, MAX_STACK_TRACE_STRING_LENGTH - wrote);
+    int exception_wrote = print_exception_stack_trace(jvmti_env,
+            jni_env,
+            exception,
+            stack_trace_str + wrote,
+            MAX_STACK_TRACE_STRING_LENGTH - wrote,
+            executable);
+
     if (exception_wrote <= 0)
     {
         free(stack_trace_str);
@@ -1841,7 +1858,12 @@ static char *generate_thread_stack_trace(
         strcat(stack_trace_str + wrote, CAUSED_STACK_TRACE_HEADER);
         wrote += sizeof(CAUSED_STACK_TRACE_HEADER) - 1;
 
-        const int cause_wrote = print_exception_stack_trace(jvmti_env, jni_env, cause, stack_trace_str + wrote, MAX_STACK_TRACE_STRING_LENGTH - wrote);
+        const int cause_wrote = print_exception_stack_trace(jvmti_env,
+                jni_env,
+                cause,
+                stack_trace_str + wrote,
+                MAX_STACK_TRACE_STRING_LENGTH - wrote,
+                /*No executable*/NULL);
 
         if (cause_wrote <= 0)
         {   /* <  0 : this should never happen, snprintf() usually works w/o errors */
@@ -2098,13 +2120,17 @@ static void JNICALL callback_on_exception(
             char *message = format_exception_reason_message(/*caught?*/NULL != catch_method,
                     updated_exception_name_ptr, class_name_ptr, method_name_ptr);
 
-            char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object);
+            char *executable = NULL;
+            char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object, &executable);
 
             const char *report_message = message;
             if (NULL == report_message)
                 report_message = (NULL != catch_method) ? "Caught exception" : "Uncaught exception";
 
-            report_stacktrace(report_message, stack_trace_str, NULL != threads_exc_buf);
+            report_stacktrace(NULL != executable ? executable : processProperties.main_class,
+                    report_message,
+                    stack_trace_str,
+                    NULL != threads_exc_buf);
 
             free(message);
             free(stack_trace_str);
