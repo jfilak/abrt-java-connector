@@ -7,7 +7,8 @@ Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: 42
 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/reflect/NativeMethodAccessorImpl.class]
 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/reflect/DelegatingMethodAccessorImpl.class]
 	at java.lang.reflect.Method.invoke(Method.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/reflect/Method.class]
-	at RemoteTest.main(RemoteTest.java:83) [file:@CMAKE_BINARY_DIR@/test/RemoteTest.class]
+	at RemoteTest.main(RemoteTest.java:102) [file:@CMAKE_BINARY_DIR@/test/RemoteTest.class]
+executable: @CMAKE_BINARY_DIR@/test/RemoteTest.class
 Uncaught exception java.lang.NullPointerException in method SimpleTest.throwNullPointerException()
 Exception in thread "main" java.lang.NullPointerException
 	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [jar:http://localhost:54321/JarTest.jar!/SimpleTest.class]
@@ -16,4 +17,5 @@ Exception in thread "main" java.lang.NullPointerException
 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/reflect/NativeMethodAccessorImpl.class]
 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/reflect/DelegatingMethodAccessorImpl.class]
 	at java.lang.reflect.Method.invoke(Method.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/lang/reflect/Method.class]
-	at RemoteTest.main(RemoteTest.java:85) [file:@CMAKE_BINARY_DIR@/test/RemoteTest.class]
+	at RemoteTest.main(RemoteTest.java:104) [file:@CMAKE_BINARY_DIR@/test/RemoteTest.class]
+executable: @CMAKE_BINARY_DIR@/test/RemoteTest.class

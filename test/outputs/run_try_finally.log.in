@@ -5,9 +5,11 @@ Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: 42
 	at SimpleTest.throwAndCatchAllExceptions(SimpleTest.java:61) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at TryFinallyTest.run(TryFinallyTest.java:13) [file:@CMAKE_BINARY_DIR@/test/TryFinallyTest.class]
 	at TryFinallyTest.main(TryFinallyTest.java:27) [file:@CMAKE_BINARY_DIR@/test/TryFinallyTest.class]
+executable: @CMAKE_BINARY_DIR@/test/TryFinallyTest.class
 Caught exception java.lang.NullPointerException in method SimpleTest.throwNullPointerException()
 Exception in thread "main" java.lang.NullPointerException
 	at SimpleTest.throwNullPointerException(SimpleTest.java:36) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at SimpleTest.throwAndDontCatchException(SimpleTest.java:71) [file:@CMAKE_BINARY_DIR@/test/SimpleTest.class]
 	at TryFinallyTest.run(TryFinallyTest.java:15) [file:@CMAKE_BINARY_DIR@/test/TryFinallyTest.class]
 	at TryFinallyTest.main(TryFinallyTest.java:27) [file:@CMAKE_BINARY_DIR@/test/TryFinallyTest.class]
+executable: @CMAKE_BINARY_DIR@/test/TryFinallyTest.class

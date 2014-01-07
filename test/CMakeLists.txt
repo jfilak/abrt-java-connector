@@ -42,7 +42,9 @@ endfunction()
 
 _add_class_target(SimpleTest TEST_JAVA_TARGETS)
 _add_class_target(RemoteTest TEST_JAVA_TARGETS SimpleTest)
-_add_class_target(MultiThreadTest TEST_JAVA_TARGETS SimpleTest)
+_add_class_target(ThreadCaughtException TEST_JAVA_TARGETS SimpleTest)
+_add_class_target(ThreadUncaughtException TEST_JAVA_TARGETS SimpleTest)
+_add_class_target(MultiThreadTest TEST_JAVA_TARGETS SimpleTest ThreadCaughtException ThreadUncaughtException)
 _add_class_target(Test TEST_JAVA_TARGETS)
 _add_class_target(com/redhat/abrt/test/Test TEST_JAVA_TARGETS)
 _add_class_target(com/redhat/abrt/test/UnbelievableLongJavaClassNameHavingExtremlyLongAndSenselessMethodNames TEST_JAVA_TARGETS)
@@ -55,7 +57,7 @@ _add_class_target(OverridenEqualExceptionTest TEST_JAVA_TARGETS)
 _add_class_target(NoException TEST_JAVA_TARGETS)
 _add_class_target(ThreadStressTest TEST_JAVA_TARGETS SimpleTest)
 
-_add_jar_target(JarTest JAR_TEST_PATH SimpleTest)
+_add_jar_target(JarTest JAR_TEST_PATH SimpleTest ThreadCaughtException ThreadUncaughtException MultiThreadTest)
 set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
 
 add_custom_target(AllTestClasses DEPENDS ${TEST_JAVA_TARGETS})
@@ -102,7 +104,7 @@ function(_add_test_target target_name)
     add_custom_target(
         ${target_name}
         ${pre_command}
-        COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}="${agent_options},abrt=$$ABRT_ENABLED,output=${target_name}.log" ${java_params} -platform.jvmtiSupported true
+        COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}="${agent_options},abrt=$$ABRT_ENABLED,output=${target_name}.log" ${java_params}
         DEPENDS AbrtChecker ${depends}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
@@ -273,6 +275,15 @@ add_custom_target(
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 add_test(test_default_no_log_file make run_default_no_log_file)
+
+_add_test_target(
+    run_remote_thread
+    RemoteTest ${JAR_TEST_PATH} MultiThreadTest
+    PRE rm -f SimpleTest.class ThreadCaughtException.class ThreadUncaughtException.class MultiThreadTest.class
+    DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
+)
+_add_test(run_remote_thread 0)
 
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)

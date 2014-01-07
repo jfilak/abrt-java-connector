@@ -4,8 +4,10 @@ Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: 42
 	at com.redhat.abrt.test.Test.catchIndexOutOfBoundsException(Test.java:49) [file:@CMAKE_BINARY_DIR@/test/com/redhat/abrt/test/Test.class]
 	at com.redhat.abrt.test.Test.throwAndCatchAllExceptions(Test.java:63) [file:@CMAKE_BINARY_DIR@/test/com/redhat/abrt/test/Test.class]
 	at com.redhat.abrt.test.Test.main(Test.java:82) [file:@CMAKE_BINARY_DIR@/test/com/redhat/abrt/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/com/redhat/abrt/test/Test.class
 Uncaught exception java.lang.NullPointerException in method com.redhat.abrt.test.Test.throwNullPointerException()
 Exception in thread "main" java.lang.NullPointerException
 	at com.redhat.abrt.test.Test.throwNullPointerException(Test.java:38) [file:@CMAKE_BINARY_DIR@/test/com/redhat/abrt/test/Test.class]
 	at com.redhat.abrt.test.Test.throwAndDontCatchException(Test.java:72) [file:@CMAKE_BINARY_DIR@/test/com/redhat/abrt/test/Test.class]
 	at com.redhat.abrt.test.Test.main(Test.java:84) [file:@CMAKE_BINARY_DIR@/test/com/redhat/abrt/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/com/redhat/abrt/test/Test.class

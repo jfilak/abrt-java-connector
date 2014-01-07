@@ -1,6 +1,5 @@
 import java.io.*;
 import java.net.*;
-//import SimpleTest;
 
 
 /**
@@ -8,19 +7,18 @@ import java.net.*;
  * @author Jakub Filak &lt;jfilak@redhat.com&gt;
  */
 
-class ThreadCaughtException extends Thread {
-    public void run() {
-        SimpleTest.throwAndCatchAllExceptions();
-    }
-}
-
-class ThreadUncaughtException extends Thread {
-    public void run() {
-        SimpleTest.throwAndDontCatchException();
-    }
-}
-
 public class MultiThreadTest {
+
+    public static void throwAndCatchAllExceptions()
+    {
+        runThread(new ThreadCaughtException());
+    }
+
+    public static void throwAndDontCatchException()
+    {
+        runThread(new ThreadUncaughtException());
+    }
+
    public static void runThread(Thread t) {
         t.start();
         try {
@@ -36,9 +34,9 @@ public class MultiThreadTest {
      */
     public static void main(String args[]) {
         System.out.println("Test.java");
-        runThread(new ThreadCaughtException());
+        throwAndCatchAllExceptions();
         System.out.println("continue...");
-        runThread(new ThreadUncaughtException());
+        throwAndDontCatchException();
         System.exit(0);
     }
 }
