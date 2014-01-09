@@ -162,6 +162,16 @@ static int jthrowable_circular_buf_find_index(T_jthrowableCircularBuf *buffer, j
     }
 
     jclass object_class = (*buffer->jni_env)->FindClass(buffer->jni_env, "java/lang/Object");
+    if ((*buffer->jni_env)->ExceptionOccurred(buffer->jni_env))
+    {
+        VERBOSE_PRINT("Cannot find java/lang/Object class\n");
+#ifdef VERBOSE
+        (*buffer->jni_env)->ExceptionDescribe(buffer->jni_env);
+#endif
+        (*buffer->jni_env)->ExceptionClear(buffer->jni_env);
+        return 1;
+    }
+
     if (NULL == object_class)
     {
         VERBOSE_PRINT("Cannot find java/lang/Object class");
@@ -169,6 +179,16 @@ static int jthrowable_circular_buf_find_index(T_jthrowableCircularBuf *buffer, j
     }
 
     jmethodID equal_method = (*buffer->jni_env)->GetMethodID(buffer->jni_env, object_class, "equals", "(Ljava/lang/Object;)Z");
+    if ((*buffer->jni_env)->ExceptionOccurred(buffer->jni_env))
+    {
+        VERBOSE_PRINT("Cannot find java.lang.Object.equals(Ljava/lang/Object;)Z method\n");
+#ifdef VERBOSE
+        (*buffer->jni_env)->ExceptionDescribe(buffer->jni_env);
+#endif
+        (*buffer->jni_env)->ExceptionClear(buffer->jni_env);
+        return 1;
+    }
+
     if (NULL == equal_method)
     {
         VERBOSE_PRINT("Cannot find java.lang.Object.equals(Ljava/lang/Object;)Z method");
@@ -182,10 +202,24 @@ static int jthrowable_circular_buf_find_index(T_jthrowableCircularBuf *buffer, j
     for (size_t i = rbegin; /* break inside */; i = jthrowable_circular_buf_get_index(buffer, (i - 1)))
     {
         VERBOSE_PRINT("Checking next exception object %p\n", (void *)buffer->mem[i]);
-        if (NULL != buffer->mem[i] && (*buffer->jni_env)->CallBooleanMethod(buffer->jni_env, buffer->mem[i], equal_method, exception))
+        if (NULL != buffer->mem[i])
         {
-            *index = i;
-            return 0;
+            jboolean equals = (*buffer->jni_env)->CallBooleanMethod(buffer->jni_env, buffer->mem[i], equal_method, exception);
+            if ((*buffer->jni_env)->ExceptionOccurred(buffer->jni_env))
+            {
+                VERBOSE_PRINT("Cannot determine whether objects are equal\n");
+#ifdef VERBOSE
+                (*buffer->jni_env)->ExceptionDescribe(buffer->jni_env);
+#endif
+                (*buffer->jni_env)->ExceptionClear(buffer->jni_env);
+                return 1;
+            }
+
+            if (equals)
+            {
+                *index = i;
+                return 0;
+            }
         }
 
         if (rend == i)
