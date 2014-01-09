@@ -235,10 +235,23 @@ _add_test_target(
 )
 _add_test(run_cut_reason_message 2)
 
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^s390x?$")
+    set(STRESS_TEST_REPEATS 30)
+    set(STRESS_TEST_THREADS 200)
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^ppc\(64\)?$")
+    set(STRESS_TEST_REPEATS 20)
+    set(STRESS_TEST_THREADS 150)
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^armv7l$")
+    set(STRESS_TEST_REPEATS 10)
+    set(STRESS_TEST_THREADS 100)
+else()
+    set(STRESS_TEST_REPEATS 60)
+    set(STRESS_TEST_THREADS 600)
+endif()
 
 add_custom_target(
     run_thread_stress
-    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=caught=java.lang.ArrayIndexOutOfBoundsException,journald=no ThreadStressTest
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=caught=java.lang.ArrayIndexOutOfBoundsException,journald=no ThreadStressTest reps=${STRESS_TEST_REPEATS} threads=${STRESS_TEST_THREADS}
     DEPENDS ${TEST_JAVA_TARGETS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
