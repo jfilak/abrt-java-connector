@@ -158,9 +158,10 @@ Exception in thread "main" java.lang.UnsatisfiedLinkError: no xyzzy in java.libr
 	at Test.catchUnsatisfiedLinkErrorSystemLibrary(Test.java:437) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.throwAndCatchAllExceptions(Test.java:492) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:515) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
 Uncaught exception java.lang.NullPointerException in method Test.throwNullPointerException()
 Exception in thread "main" java.lang.NullPointerException
 	at Test.throwNullPointerException(Test.java:290) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.throwAndDontCatchException(Test.java:501) [file:@CMAKE_BINARY_DIR@/test/Test.class]
-executable: @CMAKE_BINARY_DIR@/test/Test.class
 	at Test.main(Test.java:518) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+executable: @CMAKE_BINARY_DIR@/test/Test.class
