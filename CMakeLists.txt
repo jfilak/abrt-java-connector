@@ -6,6 +6,8 @@ enable_testing()
 # Beware, PROJECT_VERSION will be overridden by information from git
 set(PROJECT_VERSION "0.1.1")
 
+message("Configuring ${PROJECT_NAME}-${PROJECT_VERSION} on ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
+
 execute_process(
     COMMAND git log -1 --format=%h
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
