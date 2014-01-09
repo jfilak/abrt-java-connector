@@ -561,6 +561,72 @@ static void report_stacktrace(
 
 
 
+static jclass find_class_nothrow(
+        JNIEnv     *jni_env,
+        const char *fqdn_class_name)
+{
+    jclass class_obj = (*jni_env)->FindClass(jni_env, fqdn_class_name);
+    /* Throws:
+     * ClassFormatError: if the class data does not specify a valid class.
+     * ClassCircularityError: if a class or interface would be its own superclass or superinterface.
+     * NoClassDefFoundError: if no definition for a requested class or interface can be found.
+     * OutOfMemoryError: if the system runs out of memory.
+     */
+    if ((*jni_env)->ExceptionOccurred(jni_env))
+    {
+        (*jni_env)->ExceptionClear(jni_env);
+        VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": FindClass(%s) thrown an exception\n", fqdn_class_name);
+    }
+
+    return class_obj;
+}
+
+
+static jmethodID get_method_id_nothrow(
+        JNIEnv      *jni_env,
+        jclass      owning_class,
+        const char  *method_name,
+        const char  *method_type)
+{
+    jmethodID method_id = (*jni_env)->GetMethodID(jni_env, owning_class, method_name, method_type);
+    /* Throws:
+     * NoSuchMethodError: if the specified method cannot be found.
+     * ExceptionInInitializerError: if the class initializer fails due to an exception.
+     * OutOfMemoryError: if the system runs out of memory.
+     */
+    if ((*jni_env)->ExceptionOccurred(jni_env))
+    {
+        (*jni_env)->ExceptionClear(jni_env);
+        VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": GetMethodId(%s, %s) thrown an exception\n", method_name, method_type);
+    }
+
+    return method_id;
+}
+
+
+
+static jobject call_object_method_nothrow(
+        JNIEnv     *jni_env,
+        jobject    obj,
+        jmethodID  methodId,
+        ...)
+{
+    va_list params;
+    va_start(params, methodId);
+    jobject object_out = (*jni_env)->CallObjectMethodV(jni_env, obj, methodId, params);
+    va_end(params);
+
+    if ((*jni_env)->ExceptionOccurred(jni_env))
+    {
+        (*jni_env)->ExceptionClear(jni_env);
+        VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": CallObjectMethod() thrown an exception\n");
+    }
+
+    return object_out;
+}
+
+
+
 /*
  * Print a message when any JVM TI error occurs.
  */
@@ -596,13 +662,14 @@ static int get_tid(
         return 1;
     }
 
-    jmethodID get_id = (*jni_env)->GetMethodID(jni_env, thread_class, "getId", "()J" );
+    jmethodID get_id = get_method_id_nothrow(jni_env, thread_class, "getId", "()J" );
     if (NULL == get_id)
     {
         VERBOSE_PRINT("Cannot method java.lang.Thread.getId()J\n");
         return 1;
     }
 
+    /* Thread.getId() throws nothing */
     *tid = (*jni_env)->CallLongMethod(jni_env, thr, get_id);
 
     return 0;
@@ -837,7 +904,6 @@ static void get_thread_name(
 }
 
 
-
 /*
  * Read executable name from link /proc/${PID}/exe
  */
@@ -1009,21 +1075,7 @@ static char *get_main_class(
     /* replace all '.' to '/' */
     string_replace(class_name, '.', '/');
 
-    jclass cls = (*jni_env)->FindClass(jni_env, class_name);
-    /* Throws:
-     * ClassFormatError: if the class data does not specify a valid class. 
-     * ClassCircularityError: if a class or interface would be its own superclass or superinterface. 
-     * NoClassDefFoundError: if no definition for a requested class or interface can be found. 
-     * OutOfMemoryError: if the system runs out of memory.
-     */
-
-    jthrowable exception;
-    exception = (*jni_env)->ExceptionOccurred(jni_env);
-    if (exception)
-    {
-        (*jni_env)->ExceptionClear(jni_env);
-    }
-
+    jclass cls = find_class_nothrow(jni_env, class_name);
     if (cls == NULL)
     {
         if (class_name != NULL)
@@ -1339,6 +1391,7 @@ static char* get_path_to_class_class_loader(
             char     *class_name,
             const char *stringize_method_name)
 {
+    char *out = NULL;
     jclass class_loader_class = NULL;
 
     char *upd_class_name = (char*)malloc(strlen(class_name) + sizeof("class") + 1);
@@ -1352,24 +1405,7 @@ static char* get_path_to_class_class_loader(
     strcat(upd_class_name, "class");
 
     /* find ClassLoader class */
-    class_loader_class = (*jni_env)->FindClass(jni_env, "java/lang/ClassLoader");
-    /* Throws:
-     * ClassFormatError: if the class data does not specify a valid class. 
-     * ClassCircularityError: if a class or interface would be its own superclass or superinterface. 
-     * NoClassDefFoundError: if no definition for a requested class or interface can be found. 
-     * OutOfMemoryError: if the system runs out of memory.
-     */
-
-    /* check if exception was thrown from FindClass() method */
-    jthrowable exception;
-    exception = (*jni_env)->ExceptionOccurred(jni_env);
-    if (exception)
-    {
-        (*jni_env)->ExceptionClear(jni_env);
-        free(upd_class_name);
-        return NULL;
-    }
-
+    class_loader_class = find_class_nothrow(jni_env, "java/lang/ClassLoader");
     if (class_loader_class ==  NULL)
     {
         free(upd_class_name);
@@ -1377,21 +1413,7 @@ static char* get_path_to_class_class_loader(
     }
 
     /* find method ClassLoader.getResource() */
-    jmethodID get_resource = (*jni_env)->GetMethodID(jni_env, class_loader_class, "getResource", "(Ljava/lang/String;)Ljava/net/URL;" );
-    /* Throws:
-     * NoSuchMethodError: if the specified method cannot be found. 
-     * ExceptionInInitializerError: if the class initializer fails due to an exception. 
-     * OutOfMemoryError: if the system runs out of memory.
-     */
-
-    exception = (*jni_env)->ExceptionOccurred(jni_env);
-    if (exception)
-    {
-        free(upd_class_name);
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
-        return NULL;
-    }
-
+    jmethodID get_resource = get_method_id_nothrow(jni_env, class_loader_class, "getResource", "(Ljava/lang/String;)Ljava/net/URL;");
     if (get_resource ==  NULL)
     {
         free(upd_class_name);
@@ -1402,52 +1424,35 @@ static char* get_path_to_class_class_loader(
     /* convert new class name into a Java String */
     jstring j_class_name = (*jni_env)->NewStringUTF(jni_env, upd_class_name);
     free(upd_class_name);
+    if ((*jni_env)->ExceptionOccurred(jni_env))
+    {
+        (*jni_env)->ExceptionClear(jni_env);
+        VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": NewStringUTF(%s) thrown an exception\n", upd_class_name);
+        goto get_path_to_class_class_loader_lcl_refs_cleanup;
+    }
 
     /* call method ClassLoader.getResource(className) */
-    jobject url = (*jni_env)->CallObjectMethod(jni_env, class_loader, get_resource, j_class_name);
-    if ((*jni_env)->ExceptionCheck(jni_env))
-    {
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
-        (*jni_env)->DeleteLocalRef(jni_env, j_class_name);
-        (*jni_env)->ExceptionClear(jni_env);
-        return NULL;
-    }
-    if (url ==  NULL)
-    {
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
-        (*jni_env)->DeleteLocalRef(jni_env, j_class_name);
-        return NULL;
-    }
+    jobject url = call_object_method_nothrow(jni_env, class_loader, get_resource, j_class_name);
+    if (NULL == url)
+        goto get_path_to_class_class_loader_lcl_refs_cleanup;
 
     /* find method URL.toString() */
-    jmethodID to_external_form = (*jni_env)->GetMethodID(jni_env, (*jni_env)->FindClass(jni_env, "java/net/URL"), stringize_method_name, "()Ljava/lang/String;" );
-    /* Throws:
-     * NoSuchMethodError: if the specified method cannot be found. 
-     * ExceptionInInitializerError: if the class initializer fails due to an exception. 
-     * OutOfMemoryError: if the system runs out of memory.
-     */
-    exception = (*jni_env)->ExceptionOccurred(jni_env);
-    if (exception)
-    {
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
-        (*jni_env)->DeleteLocalRef(jni_env, j_class_name);
-        return NULL;
-    }
+    jclass url_class = find_class_nothrow(jni_env, "java/net/URL");
+    if (NULL == url_class)
+        goto get_path_to_class_class_loader_lcl_refs_cleanup;
+
+    jmethodID to_external_form = get_method_id_nothrow(jni_env, url_class, stringize_method_name, "()Ljava/lang/String;");
+    if (NULL == to_external_form)
+        goto get_path_to_class_class_loader_lcl_refs_cleanup;
 
     /* call method URL.toString() */
-    jstring jstr = (jstring)(*jni_env)->CallObjectMethod(jni_env, url, to_external_form);
-    /* no exception expected */
-
+    jstring jstr = (jstring)call_object_method_nothrow(jni_env, url, to_external_form);
     if (jstr ==  NULL)
-    {
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
-        (*jni_env)->DeleteLocalRef(jni_env, j_class_name);
-        return NULL;
-    }
+        goto get_path_to_class_class_loader_lcl_refs_cleanup;
 
     /* convert Java String into C char* */
     char *str = (char*)(*jni_env)->GetStringUTFChars(jni_env, jstr, NULL);
-    char *out = strdup(str);
+    out = strdup(str);
     if (out == NULL)
     {
         fprintf(stderr, "strdup(): out of memory");
@@ -1455,6 +1460,8 @@ static char* get_path_to_class_class_loader(
 
     /* cleanup */
     (*jni_env)->ReleaseStringUTFChars(jni_env, jstr, str);
+
+get_path_to_class_class_loader_lcl_refs_cleanup:
     (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
     (*jni_env)->DeleteLocalRef(jni_env, j_class_name);
     return out;
@@ -1469,12 +1476,11 @@ static jobject get_system_class_loader(
             jvmtiEnv *jvmti_env __UNUSED_VAR,
             JNIEnv   *jni_env)
 {
-    jclass class_loader_class = (*jni_env)->FindClass(jni_env, "java/lang/ClassLoader");
+    jobject system_class_loader = NULL;
+
+    jclass class_loader_class = find_class_nothrow(jni_env, "java/lang/ClassLoader");
     if (NULL == class_loader_class)
-    {
-        VERBOSE_PRINT("Cannot find java/lang/ClassLoader class\n");
         return NULL;
-    }
 
     jmethodID get_system_class_loader_smethod =(*jni_env)->GetStaticMethodID(jni_env, class_loader_class, "getSystemClassLoader", "()Ljava/lang/ClassLoader;");
     jthrowable exception = (*jni_env)->ExceptionOccurred(jni_env);
@@ -1482,26 +1488,24 @@ static jobject get_system_class_loader(
     {
         VERBOSE_PRINT("Exception occured: can not get method java.lang.ClassLoader.getSystemClassLoader()\n");
         (*jni_env)->ExceptionClear(jni_env);
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
-        return NULL;
+        goto get_system_class_loader_cleanup;
     }
     if (NULL == get_system_class_loader_smethod)
     {
         VERBOSE_PRINT("Cannot find java.lang.ClassLoader.getSystemClassLoader()Ljava/lang/ClassLoader;\n");
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
-        return NULL;
+        goto get_system_class_loader_cleanup;
     }
 
-    jobject system_class_loader = (*jni_env)->CallStaticObjectMethod(jni_env, class_loader_class, get_system_class_loader_smethod);
+    system_class_loader = (*jni_env)->CallStaticObjectMethod(jni_env, class_loader_class, get_system_class_loader_smethod);
     exception = (*jni_env)->ExceptionOccurred(jni_env);
     if (NULL != exception)
     {
         VERBOSE_PRINT("java.lang.ClassLoader.getSystemClassLoader() thrown an exception\n");
         (*jni_env)->ExceptionClear(jni_env);
-        (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
-        return NULL;
+        goto get_system_class_loader_cleanup;
     }
 
+get_system_class_loader_cleanup:
     (*jni_env)->DeleteLocalRef(jni_env, class_loader_class);
     return system_class_loader;
 }
@@ -1552,28 +1556,22 @@ static jclass find_class_in_loaded_class(
         return NULL;
     }
 
-    jclass class_class = (*jni_env)->FindClass(jni_env, "java/lang/Class");
+    jclass class_class = find_class_nothrow(jni_env, "java/lang/Class");
     if (NULL == class_class)
-    {
-        VERBOSE_PRINT("Cannot find java/lang/Class class");
         goto find_class_in_loaded_class_cleanup;
-    }
 
-    jmethodID get_name_method = (*jni_env)->GetMethodID(jni_env, class_class, "getName", "()Ljava/lang/String;");
+    jmethodID get_name_method = get_method_id_nothrow(jni_env, class_class, "getName", "()Ljava/lang/String;");
     if (NULL == get_name_method)
     {
-        VERBOSE_PRINT("Cannot find java.lang.Class.getName.()Ljava/lang/String;");
         (*jni_env)->DeleteLocalRef(jni_env, class_class);
         goto find_class_in_loaded_class_cleanup;
     }
 
     for (jint i = 0; NULL == result && i < num_classes; ++i)
     {
-        jobject class_name = (*jni_env)->CallObjectMethod(jni_env, loaded_classes[i], get_name_method);
+        jobject class_name = call_object_method_nothrow(jni_env, loaded_classes[i], get_name_method);
         if (NULL == class_name)
-        {
             continue;
-        }
 
         char *class_name_cstr = (char*)(*jni_env)->GetStringUTFChars(jni_env, class_name, NULL);
         if (strcmp(searched_class_name, class_name_cstr) == 0)
@@ -1607,20 +1605,14 @@ static int print_stack_trace_element(
             char           **class_fs_path)
 {
     jclass stack_frame_class = (*jni_env)->GetObjectClass(jni_env, stack_frame);
-    jmethodID get_class_name_method = (*jni_env)->GetMethodID(jni_env, stack_frame_class, "getClassName", "()Ljava/lang/String;");
+    jmethodID get_class_name_method = get_method_id_nothrow(jni_env, stack_frame_class, "getClassName", "()Ljava/lang/String;");
     if (get_class_name_method == NULL)
     {
         (*jni_env)->DeleteLocalRef(jni_env, stack_frame_class);
         return -1;
     }
 
-    jstring class_name_of_frame_method = (*jni_env)->CallObjectMethod(jni_env, stack_frame, get_class_name_method);
-    if ((*jni_env)->ExceptionOccurred(jni_env))
-    {
-        (*jni_env)->DeleteLocalRef(jni_env, stack_frame_class);
-        (*jni_env)->ExceptionClear(jni_env);
-        return -1;
-    }
+    jstring class_name_of_frame_method = call_object_method_nothrow(jni_env, stack_frame, get_class_name_method);
     if (class_name_of_frame_method == NULL)
     {
         (*jni_env)->DeleteLocalRef(jni_env, stack_frame_class);
@@ -1629,14 +1621,11 @@ static int print_stack_trace_element(
 
     char *cls_name_str = (char*)(*jni_env)->GetStringUTFChars(jni_env, class_name_of_frame_method, NULL);
     string_replace(cls_name_str, '.', '/');
-    jclass class_of_frame_method = (*jni_env)->FindClass(jni_env, cls_name_str);
+    jclass class_of_frame_method = find_class_nothrow(jni_env, cls_name_str);
     char *class_location = NULL;
 
-    if ((*jni_env)->ExceptionOccurred(jni_env))
+    if (NULL == class_of_frame_method)
     {
-        VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": FindClass(%s) thrown an exception\n", cls_name_str);
-        (*jni_env)->ExceptionClear(jni_env);
-
         string_replace(cls_name_str, '/', '.');
         class_of_frame_method = find_class_in_loaded_class(jvmti_env, jni_env, cls_name_str);
         string_replace(cls_name_str, '.', '/');
@@ -1662,20 +1651,14 @@ static int print_stack_trace_element(
     }
     (*jni_env)->ReleaseStringUTFChars(jni_env, class_name_of_frame_method, cls_name_str);
 
-    jmethodID to_string_method = (*jni_env)->GetMethodID(jni_env, stack_frame_class, "toString", "()Ljava/lang/String;");
+    jmethodID to_string_method = get_method_id_nothrow(jni_env, stack_frame_class, "toString", "()Ljava/lang/String;");
     (*jni_env)->DeleteLocalRef(jni_env, stack_frame_class);
     if (to_string_method == NULL)
     {
         return -1;
     }
 
-    jobject orig_str = (*jni_env)->CallObjectMethod(jni_env, stack_frame, to_string_method);
-    if ((*jni_env)->ExceptionOccurred(jni_env))
-    {
-        (*jni_env)->DeleteLocalRef(jni_env, orig_str);
-        (*jni_env)->ExceptionClear(jni_env);
-        return -1;
-    }
+    jobject orig_str = call_object_method_nothrow(jni_env, stack_frame, to_string_method);
     if (orig_str == NULL)
     {
         (*jni_env)->DeleteLocalRef(jni_env, orig_str);
@@ -1711,20 +1694,14 @@ static int print_exception_stack_trace(
 {
 
     jclass exception_class = (*jni_env)->GetObjectClass(jni_env, exception);
-    jmethodID to_string_method = (*jni_env)->GetMethodID(jni_env, exception_class, "toString", "()Ljava/lang/String;");
+    jmethodID to_string_method = get_method_id_nothrow(jni_env, exception_class, "toString", "()Ljava/lang/String;");
     if (to_string_method == NULL)
     {
         (*jni_env)->DeleteLocalRef(jni_env, exception_class);
         return -1;
     }
 
-    jobject exception_str = (*jni_env)->CallObjectMethod(jni_env, exception, to_string_method);
-    if ((*jni_env)->ExceptionCheck(jni_env))
-    {
-        (*jni_env)->DeleteLocalRef(jni_env, exception_class);
-        (*jni_env)->ExceptionClear(jni_env);
-        return -1;
-    }
+    jobject exception_str = call_object_method_nothrow(jni_env, exception, to_string_method);
     if (exception_str == NULL)
     {
         (*jni_env)->DeleteLocalRef(jni_env, exception_class);
@@ -1748,7 +1725,7 @@ static int print_exception_stack_trace(
     (*jni_env)->ReleaseStringUTFChars(jni_env, exception_str, str);
     (*jni_env)->DeleteLocalRef(jni_env, exception_str);
 
-    jmethodID get_stack_trace_method = (*jni_env)->GetMethodID(jni_env, exception_class, "getStackTrace", "()[Ljava/lang/StackTraceElement;");
+    jmethodID get_stack_trace_method = get_method_id_nothrow(jni_env, exception_class, "getStackTrace", "()[Ljava/lang/StackTraceElement;");
     (*jni_env)->DeleteLocalRef(jni_env, exception_class);
 
     if (get_stack_trace_method == NULL)
@@ -1757,20 +1734,14 @@ static int print_exception_stack_trace(
         return wrote;
     }
 
-    jobject stack_trace_array = (*jni_env)->CallObjectMethod(jni_env, exception, get_stack_trace_method);
-    if ((*jni_env)->ExceptionCheck(jni_env))
-    {
-        (*jni_env)->ExceptionClear(jni_env);
-        return wrote;
-    }
+    jobject stack_trace_array = call_object_method_nothrow(jni_env, exception, get_stack_trace_method);
     if (stack_trace_array ==  NULL)
-    {
         return wrote;
-    }
 
     jint array_size = (*jni_env)->GetArrayLength(jni_env, stack_trace_array);
     for (jint i = 0; i < array_size; ++i)
     {
+        /* Throws only ArrayIndexOutOfBoundsException and this should not happen */
         jobject frame_element = (*jni_env)->GetObjectArrayElement(jni_env, stack_trace_array, i);
 
         const int frame_wrote = print_stack_trace_element(jvmti_env,
@@ -1836,7 +1807,7 @@ static char *generate_thread_stack_trace(
         return stack_trace_str;
     }
 
-    jmethodID get_cause_method = (*jni_env)->GetMethodID(jni_env, exception_class, "getCause", "()Ljava/lang/Throwable;");
+    jmethodID get_cause_method = get_method_id_nothrow(jni_env, exception_class, "getCause", "()Ljava/lang/Throwable;");
     (*jni_env)->DeleteLocalRef(jni_env, exception_class);
 
     if (NULL == get_cause_method)
@@ -1845,7 +1816,7 @@ static char *generate_thread_stack_trace(
         return stack_trace_str;
     }
 
-    jobject cause = (*jni_env)->CallObjectMethod(jni_env, exception, get_cause_method);
+    jobject cause = call_object_method_nothrow(jni_env, exception, get_cause_method);
     while (NULL != cause)
     {
         if ((size_t)(MAX_STACK_TRACE_STRING_LENGTH - wrote) < (sizeof(CAUSED_STACK_TRACE_HEADER) - 1))
@@ -1874,7 +1845,7 @@ static char *generate_thread_stack_trace(
 
         wrote += cause_wrote;
 
-        jobject next_cause = (*jni_env)->CallObjectMethod(jni_env, cause, get_cause_method);
+        jobject next_cause = call_object_method_nothrow(jni_env, cause, get_cause_method);
         (*jni_env)->DeleteLocalRef(jni_env, cause);
         cause = next_cause;
     }
