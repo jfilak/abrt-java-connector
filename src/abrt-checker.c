@@ -203,6 +203,14 @@ char *outputFileName = DISABLED_LOG_OUTPUT;
 /* Path (not necessary absolute) to output file */
 char **reportedCaughExceptionTypes;
 
+/* Determines which resource is used as executable */
+enum {
+    ABRT_EXECUTABLE_MAIN = 0,
+    ABRT_EXECUTABLE_THREAD = 1,
+};
+int executableFlags = 0;
+
+
 /* Map of buffer for already reported exceptions to prevent re-reporting */
 T_jthreadMap *threadMap;
 
@@ -2121,7 +2129,8 @@ static void JNICALL callback_on_exception(
                     updated_exception_name_ptr, class_name_ptr, method_name_ptr);
 
             char *executable = NULL;
-            char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object, &executable);
+            char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object,
+                    (executableFlags & ABRT_EXECUTABLE_THREAD) ? &executable : NULL);
 
             const char *report_message = message;
             if (NULL == report_message)
@@ -2757,9 +2766,27 @@ void parse_commandline_options(char *options)
         {
             reportedCaughExceptionTypes = build_string_vector(value, ':');
         }
+        else if (strcmp("executable", key) == 0)
+        {
+            if (strcmp("threadclass", value) == 0)
+            {
+                VERBOSE_PRINT("Use a thread class for 'executable'\n");
+                executableFlags |= ABRT_EXECUTABLE_THREAD;
+            }
+            else if (strcmp("mainclass", value) == 0)
+            {
+                /* Unset ABRT_EXECUTABLE_THREAD bit */
+                VERBOSE_PRINT("Use the main class for 'executable'\n");
+                executableFlags &= ~ABRT_EXECUTABLE_THREAD;
+            }
+            else
+            {
+                fprintf(stderr, "Unknown 'executable' option's value '%s'\n", key);
+            }
+        }
         else
         {
-            fprintf(stderr, "Unknow option '%s'\n", key);
+            fprintf(stderr, "Unknown option '%s'\n", key);
         }
     }
 }
