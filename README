@@ -43,7 +43,7 @@ $  java -agentlib:abrt-java-connector=abrt=on $MyClass -platform.jvmtiSupported 
 
 Example3:
 - this example shows how to configure the log output destination
-- output option is designed for this purpose
+- 'output' option is designed for this purpose
 - abrt-java-connector does not print any logs by default
 - the first command prints logs to /tmp/abrt_checker_$PID.log
 
@@ -56,7 +56,7 @@ $  java -agentlib:abrt-java-connector=output=/tmp/abrt-agent.log $MyClass -platf
 
 Example4:
 - this example shows how to enable reporting of caught exceptions
-- caught option is designed for this purpose
+- 'caught' option is designed for this purpose
 - by default no caught exception is reported
 - user must provide a colon separated list of exception type names
 
@@ -74,3 +74,15 @@ $  java -agentlib:abrt-java-connector=journald=off $MyClass -platform.jvmtiSuppo
 
 - enable syslog
 $  java -agentlib:abrt-java-connector=syslog=on $MyClass -platform.jvmtiSupported true
+
+Example5:
+- this example shows how configure abrt-java-connector to fill 'executable'
+  ABRT file with a path to a class on the bottom of the stack trace (the first
+  method of thread)
+- this feature can be enabled via 'executable' option which can contain either
+  'mainclass' or 'threadclass'
+
+$  java -agentlib:abrt-java-connector=executable=threadclass $MyClass -platform.jvmtiSupported true
+
+- 'mainclass' is used when 'executable' option is not passed and 'executable'
+  file is filled with full path $MyClass
