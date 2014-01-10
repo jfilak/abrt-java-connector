@@ -150,7 +150,7 @@ _add_test_target(
     run_threads
     MultiThreadTest
     DEPENDS ${TEST_JAVA_TARGETS}
-    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException,executable=threadclass
 )
 _add_test(run_threads 0)
 
@@ -167,6 +167,7 @@ _add_test_target(
     run_bad_class
     BadClassTest
     DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
+    AGENT_OPTIONS executable=threadclass
 )
 _add_test(run_bad_class 2)
 
@@ -175,6 +176,7 @@ _add_test_target(
     MissingClassTest
     PRE rm -f MissingClassTest.class
     DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
+    AGENT_OPTIONS executable=threadclass
 )
 _add_test(run_missing_class_test 2)
 
@@ -294,7 +296,7 @@ _add_test_target(
     RemoteTest ${JAR_TEST_PATH} MultiThreadTest
     PRE rm -f SimpleTest.class ThreadCaughtException.class ThreadUncaughtException.class MultiThreadTest.class
     DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
-    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException,executable=threadclass
 )
 _add_test(run_remote_thread 0)
 
