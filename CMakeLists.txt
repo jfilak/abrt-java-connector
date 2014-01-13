@@ -39,6 +39,10 @@ endif()
 
 set(ARCHIVE_NAME ${CMAKE_PROJECT_NAME}-${PROJECT_VERSION})
 
+if(NOT BIN_INSTALL_DIR)
+    set(BIN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/bin)
+endif()
+
 if(NOT LIB_INSTALL_DIR)
     set(LIB_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
@@ -55,10 +59,23 @@ if(NOT MAN_INSTALL_DIR)
     set(MAN_INSTALL_DIR ${SHARE_INSTALL_PREFIX}/man)
 endif()
 
+if(NOT LOCALE_INSTALL_DIR)
+    set(LOCALE_INSTALL_DIR ${SHARE_INSTALL_PREFIX}/locale)
+endif()
+
+
 add_custom_target(
     dist
     COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${git_commit}/ HEAD | gzip > ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
-subdirs(src etc test)
+include(FindPkgConfig)
+pkg_check_modules(PC_SATYR REQUIRED satyr)
+pkg_check_modules(PC_LIBREPORT REQUIRED libreport)
+pkg_check_modules(PC_ABRT REQUIRED abrt)
+
+add_definitions(-D_GNU_SOURCE)
+set(AJC_ENABLE_NLS true)
+
+subdirs(src etc test utils po)
