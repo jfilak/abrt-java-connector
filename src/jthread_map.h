@@ -23,7 +23,7 @@
 
 
 /*
- * Map of TID to jthrowable_circular_buf
+ * Map of TID to (void *)
  */
 typedef struct jthread_map T_jthreadMap;
 
@@ -41,7 +41,7 @@ T_jthreadMap *jthread_map_new();
 /*
  * Frees map's memory
  *
- * Doesn't release memory of stored circular buffers.
+ * Doesn't release memory of stored (void *).
  *
  * @param map Pointer to @jthread_map. Accepts NULL
  */
@@ -50,15 +50,15 @@ void jthread_map_free(T_jthreadMap *map);
 
 
 /*
- * Adds a new map item identified by @tid with value @buffer
+ * Adds a new map item identified by @tid with value @item
  *
  * Does nothing if item with same @tid already exists in @map
  *
  * @param map Map
  * @param tid New item ID
- * @param buffer A pointer to @jthrowable_circular_buf
+ * @param item A (void *) item
  */
-void jthread_map_push(T_jthreadMap *map, jlong tid, T_jthrowableCircularBuf *buffer);
+void jthread_map_push(T_jthreadMap *map, jlong tid, void *item);
 
 
 
@@ -67,9 +67,9 @@ void jthread_map_push(T_jthreadMap *map, jlong tid, T_jthrowableCircularBuf *buf
  *
  * @param map Map
  * @param tid Required ID
- * @returns A pointer to stored @jthrowable_circular_buf or NULL if item with @tid was not found
+ * @returns A stored item or NULL if item with @tid was not found
  */
-T_jthrowableCircularBuf *jthread_map_get(T_jthreadMap *map, jlong tid);
+void *jthread_map_get(T_jthreadMap *map, jlong tid);
 
 
 
@@ -78,9 +78,9 @@ T_jthrowableCircularBuf *jthread_map_get(T_jthreadMap *map, jlong tid);
  *
  * @param map Map
  * @param tid Removed item's ID
- * @returns A pointer to stored @jthrowable_circular_buf or NULL if item with @tid was not found
+ * @returns A stored item or NULL if item with @tid was not found
  */
-T_jthrowableCircularBuf *jthread_map_pop(T_jthreadMap *map, jlong tid);
+void *jthread_map_pop(T_jthreadMap *map, jlong tid);
 
 
 
