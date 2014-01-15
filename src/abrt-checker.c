@@ -2100,6 +2100,10 @@ static void JNICALL callback_on_exception(
             jmethodID catch_method,
             jlocation catch_location __UNUSED_VAR)
 {
+    /* This is caught exception and no caught exception is to be reported */
+    if (NULL != catch_method && NULL == reportedCaughExceptionTypes)
+        return;
+
     char *exception_type_name = NULL;
 
     /* all operations should be processed in critical section */
