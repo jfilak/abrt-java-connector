@@ -63,9 +63,6 @@
 /* Enables checks based on JVMTI_EVENT_VM_DEATH */
 /* #define ABRT_VM_DEATH_CHECK */
 
-/* Enables checks based on JVMTI_EVENT_EXCEPTION_CATCH  */
-/* #define ABRT_EXCEPTION_CATCH_CHECK */
-
 /* Enables checks based on JVMTI_EVENT_VM_OBJECT_ALLOC */
 /* #define ABRT_OBJECT_ALLOCATION_SIZE_CHECK */
 
@@ -165,6 +162,19 @@ typedef struct {
 
 
 /*
+ * This structure is representation of a single report of an exception.
+ */
+typedef struct {
+    char *message;
+    char *stacktrace;
+    char *executable;
+    char *exception_type_name;
+    jobject exception_object;
+} T_exceptionReport;
+
+
+
+/*
  * Flags for specification of destination for error reports
  */
 typedef enum {
@@ -213,6 +223,9 @@ int executableFlags = 0;
 
 /* Map of buffer for already reported exceptions to prevent re-reporting */
 T_jthreadMap *threadMap;
+
+/* Map of uncaught exceptions. There should be only 1 per thread.*/
+T_jthreadMap *uncaughtExceptionMap;
 
 
 /* forward headers */
@@ -453,9 +466,12 @@ static int exception_is_intended_to_be_reported(
 
     if (reportedCaughExceptionTypes != NULL)
     {
-        *exception_type = get_exception_type_name(jvmti_env, jni_env, exception_object);
         if (NULL == *exception_type)
-            return 0;
+        {
+            *exception_type = get_exception_type_name(jvmti_env, jni_env, exception_object);
+            if (NULL == *exception_type)
+                return 0;
+        }
 
         /* special cases for selected exceptions */
         for (char **cursor = reportedCaughExceptionTypes; *cursor; ++cursor)
@@ -1277,7 +1293,7 @@ static void JNICALL callback_on_thread_start(
         return;
     }
 
-    jthread_map_push(threadMap, tid, threads_exc_buf);
+    jthread_map_push(threadMap, tid, (void *)threads_exc_buf);
 }
 
 
@@ -1304,7 +1320,25 @@ static void JNICALL callback_on_thread_end(
         return;
     }
 
-    T_jthrowableCircularBuf *threads_exc_buf = jthread_map_pop(threadMap, tid);
+    T_exceptionReport *rpt = (T_exceptionReport *)jthread_map_pop(uncaughtExceptionMap, tid);
+    T_jthrowableCircularBuf *threads_exc_buf = (T_jthrowableCircularBuf *)jthread_map_pop(threadMap, tid);
+
+    if (NULL != rpt)
+    {
+        if (NULL == threads_exc_buf || NULL == jthrowable_circular_buf_find(threads_exc_buf, rpt->exception_object))
+        {
+            report_stacktrace(NULL != rpt->executable ? rpt->executable : processProperties.main_class,
+                              NULL != rpt->message ? rpt->message : "Uncaught exception",
+                              rpt->stacktrace,
+                              NULL != threads_exc_buf);
+        }
+
+        free(rpt->message);
+        free(rpt->stacktrace);
+        free(rpt->executable);
+        free(rpt->exception_type_name);
+    }
+
     if (threads_exc_buf != NULL)
     {
         jthrowable_circular_buf_free(threads_exc_buf);
@@ -2120,7 +2154,7 @@ static void JNICALL callback_on_exception(
 
         if (NULL != threadMap && 0 == get_tid(jni_env, thr, &tid))
         {
-            threads_exc_buf = jthread_map_get(threadMap, tid);
+            threads_exc_buf = (T_jthrowableCircularBuf *)jthread_map_get(threadMap, tid);
             VERBOSE_PRINT("Got circular buffer for thread %p\n", (void *)threads_exc_buf);
         }
         else
@@ -2136,12 +2170,6 @@ static void JNICALL callback_on_exception(
             char *method_signature_ptr = NULL;
             char *class_name_ptr = NULL;
             char *class_signature_ptr = NULL;
-
-            if (NULL != threads_exc_buf)
-            {
-                VERBOSE_PRINT("Pushing to circular buffer\n");
-                jthrowable_circular_buf_push(threads_exc_buf, exception_object);
-            }
 
             error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
             if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
@@ -2176,11 +2204,47 @@ static void JNICALL callback_on_exception(
             if (NULL == report_message)
                 report_message = (NULL != catch_method) ? "Caught exception" : "Uncaught exception";
 
-            report_stacktrace(NULL != executable ? executable : processProperties.main_class,
-                    report_message,
-                    stack_trace_str,
-                    NULL != threads_exc_buf);
+            if (NULL == catch_method)
+            {   /* Postpone reporting of uncaught exceptions as they may be caught by a native function */
+                T_exceptionReport *rpt = malloc(sizeof(*rpt));
+                if (NULL == rpt)
+                {
+                    fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
+                }
+                else
+                {
+                    rpt->message = message;
+                    message = NULL;
 
+                    rpt->exception_type_name = exception_type_name;
+                    exception_type_name = NULL;
+
+                    rpt->stacktrace = stack_trace_str;
+                    stack_trace_str = NULL;
+
+                    rpt->executable = executable;
+                    executable = NULL;
+
+                    rpt->exception_object = exception_object;
+
+                    jthread_map_push(uncaughtExceptionMap, tid, (T_exceptionReport *)rpt);
+                }
+            }
+            else
+            {
+                report_stacktrace(NULL != executable ? executable : processProperties.main_class,
+                        report_message,
+                        stack_trace_str,
+                        NULL != threads_exc_buf);
+
+                if (NULL != threads_exc_buf)
+                {
+                    VERBOSE_PRINT("Pushing to circular buffer\n");
+                    jthrowable_circular_buf_push(threads_exc_buf, exception_object);
+                }
+            }
+
+            free(executable);
             free(message);
             free(stack_trace_str);
 
@@ -2217,18 +2281,16 @@ callback_on_exception_cleanup:
 }
 
 
-
-#if ABRT_EXCEPTION_CATCH_CHECK
 /*
  * This function is called when an exception is catched.
  */
 static void JNICALL callback_on_exception_catch(
             jvmtiEnv *jvmti_env,
-            JNIEnv   *jni_env __UNUSED_VAR,
-            jthread   thr __UNUSED_VAR,
+            JNIEnv   *jni_env,
+            jthread   thread,
             jmethodID method,
             jlocation location __UNUSED_VAR,
-            jobject   exception __UNUSED_VAR)
+            jobject   exception_object)
 {
     jvmtiError error_code;
 
@@ -2236,52 +2298,120 @@ static void JNICALL callback_on_exception_catch(
     char *method_signature_ptr = NULL;
     char *class_signature_ptr = NULL;
 
-    jclass class;
-
     /* all operations should be processed in critical section */
     enter_critical_section(jvmti_env, shared_lock);
 
-    /* retrieve all required informations */
-    error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
-    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
-        goto callback_on_exception_catch_cleanup;
+    jclass class;
 
-    error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
-    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
-        goto callback_on_exception_catch_cleanup;
+    jlong tid = 0;
 
-    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature_ptr, NULL);
-    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
-        goto callback_on_exception_catch_cleanup;
+    if (get_tid(jni_env, thread, &tid))
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": Cannot clear uncaught exceptions");
+        goto callback_on_exception_catch_exit;
+    }
 
-#ifdef VERBOSE
-    /* readable class name */
-    char *class_name_ptr = format_class_name(class_signature_ptr, '.');
-#endif
+    T_exceptionReport *rpt = (T_exceptionReport *)jthread_map_get(uncaughtExceptionMap, tid);
+    if (NULL == rpt)
+    {
+        goto callback_on_exception_catch_exit;
+    }
 
-    VERBOSE_PRINT("An exception was caught in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
+    jclass object_class = (*jni_env)->FindClass(jni_env, "java/lang/Object");
+    if (NULL == object_class)
+    {
+        VERBOSE_PRINT("Cannot find java/lang/Object class");
+        goto callback_on_exception_catch_exit;
+    }
+
+    jmethodID equal_method = (*jni_env)->GetMethodID(jni_env, object_class, "equals", "(Ljava/lang/Object;)Z");
+    if (NULL == equal_method)
+    {
+        VERBOSE_PRINT("Cannot find java.lang.Object.equals(Ljava/lang/Object;)Z method");
+        (*jni_env)->DeleteLocalRef(jni_env, object_class);
+        goto callback_on_exception_catch_exit;
+    }
+
+    jboolean equal_objects = (*jni_env)->CallBooleanMethod(jni_env, exception_object, equal_method, rpt->exception_object);
+    if (!equal_objects)
+        goto callback_on_exception_catch_exit;
+
+    /* Faster than get()-pop() approach is faster because it is search-and-search-free but
+     * pop()-push() approach is search-free-and-search-malloc
+     *
+     * JVM always catches java.security.PrivilegedActionException while
+     * handling uncaught java.lang.ClassNotFoundException throw by
+     * initialization of the system (native) class loader.
+     */
+    jthread_map_pop(uncaughtExceptionMap, tid);
+
+    if (exception_is_intended_to_be_reported(jvmti_env, jni_env, rpt->exception_object, &(rpt->exception_type_name)))
+    {
+        jlong tid = 0;
+        T_jthrowableCircularBuf *threads_exc_buf = NULL;
+
+        if (NULL != threadMap && 0 == get_tid(jni_env, thread, &tid))
+        {
+            threads_exc_buf = (T_jthrowableCircularBuf *)jthread_map_get(threadMap, tid);
+            VERBOSE_PRINT("Got circular buffer for thread %p\n", (void *)threads_exc_buf);
+        }
+        else
+        {
+            VERBOSE_PRINT("Cannot get thread's ID. Disabling reporting to ABRT.");
+        }
+
+        if (NULL == threads_exc_buf || NULL == jthrowable_circular_buf_find(threads_exc_buf, rpt->exception_object))
+        {
+            /* retrieve all required informations */
+            error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
+            if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+                goto callback_on_exception_catch_cleanup;
+
+            error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &class);
+            if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+                goto callback_on_exception_catch_cleanup;
+
+            error_code = (*jvmti_env)->GetClassSignature(jvmti_env, class, &class_signature_ptr, NULL);
+            if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+                goto callback_on_exception_catch_cleanup;
+
+            /* readable class name */
+            char *class_name_ptr = format_class_name(class_signature_ptr, '\0');
+            char *message = format_exception_reason_message(/*caught*/1, rpt->exception_type_name,  class_name_ptr, method_name_ptr);
+            report_stacktrace(NULL != rpt->executable ? rpt->executable : processProperties.main_class,
+                              NULL != message ? message : "Caught exception",
+                              rpt->stacktrace,
+                              NULL != threads_exc_buf);
+
+            if (NULL != threads_exc_buf)
+            {
+                VERBOSE_PRINT("Pushing to circular buffer\n");
+                jthrowable_circular_buf_push(threads_exc_buf, rpt->exception_object);
+            }
 
 callback_on_exception_catch_cleanup:
-    /* cleapup */
-    if (method_name_ptr != NULL)
-    {
-        error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_name_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
-    }
-    if (method_signature_ptr != NULL)
-    {
-        error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_signature_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
-    }
-    if (class_signature_ptr != NULL)
-    {
-        error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)class_signature_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+            /* cleapup */
+            if (method_name_ptr != NULL)
+            {
+                error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_name_ptr);
+                check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+            }
+            if (class_signature_ptr != NULL)
+            {
+                error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)class_signature_ptr);
+                check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+            }
+        }
     }
 
+    free(rpt->message);
+    free(rpt->stacktrace);
+    free(rpt->executable);
+    free(rpt->exception_type_name);
+
+callback_on_exception_catch_exit:
     exit_critical_section(jvmti_env, shared_lock);
 }
-#endif /* ABRT_EXCEPTION_CATCH_CHECK */
 
 
 
@@ -2497,10 +2627,8 @@ jvmtiError register_all_callback_functions(jvmtiEnv *jvmti_env)
     /* JVMTI_EVENT_EXCEPTION */
     callbacks.Exception = &callback_on_exception;
 
-#if ABRT_EXCEPTION_CATCH_CHECK
     /* JVMTI_EVENT_EXCEPTION_CATCH */
     callbacks.ExceptionCatch = &callback_on_exception_catch;
-#endif /* ABRT_EXCEPTION_CATCH_CHECK */
 
 #if ABRT_OBJECT_ALLOCATION_SIZE_CHECK
     /* JVMTI_EVENT_VM_OBJECT_ALLOC */
@@ -2580,12 +2708,10 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
         return error_code;
     }
 
-#if ABRT_EXCEPTION_CATCH_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_EXCEPTION_CATCH)) != JNI_OK)
     {
         return error_code;
     }
-#endif /* ABRT_EXCEPTION_CATCH_CHECK */
 
 #if ABRT_OBJECT_ALLOCATION_SIZE_CHECK
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_VM_OBJECT_ALLOC)) != JNI_OK)
@@ -2903,6 +3029,12 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
         return -1;
     }
 
+    uncaughtExceptionMap = jthread_map_new();
+    if (NULL == uncaughtExceptionMap)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can not create a set of uncaught exceptions\n");
+        return -1;
+    }
     return JNI_OK;
 }
 
@@ -2928,6 +3060,7 @@ JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
         fclose(fout);
     }
 
+    jthread_map_free(uncaughtExceptionMap);
     jthread_map_free(threadMap);
 }
 

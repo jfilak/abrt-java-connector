@@ -35,7 +35,7 @@ struct jthread_map_item;
 
 typedef struct jthread_map_item {
     long tid;                         ///< item ID from Thread.getId()
-    T_jthrowableCircularBuf *buffer;  ///< an instance of circular buffer for thread
+    void *data;                       ///< data
     struct jthread_map_item *next;    ///< a next item mapped to same element
 } T_jthreadMapItem;
 
@@ -76,7 +76,7 @@ void jthread_map_free(T_jthreadMap *map)
 
 
 
-static T_jthreadMapItem *jthrowable_map_item_new(long tid, T_jthrowableCircularBuf *buffer)
+static T_jthreadMapItem *jthrowable_map_item_new(long tid, void *item)
 {
     T_jthreadMapItem *itm = malloc(sizeof(*itm));
     if (NULL == itm)
@@ -86,7 +86,7 @@ static T_jthreadMapItem *jthrowable_map_item_new(long tid, T_jthrowableCircularB
     }
 
     itm->tid = tid;
-    itm->buffer = buffer;
+    itm->data = item;
     itm->next = NULL;
     return itm;
 }
@@ -105,7 +105,7 @@ static void jthread_map_item_free(T_jthreadMapItem *itm)
 
 
 
-void jthread_map_push(T_jthreadMap *map, jlong tid, T_jthrowableCircularBuf *buffer)
+void jthread_map_push(T_jthreadMap *map, jlong tid, void *item)
 {
     assert(NULL != map);
 
@@ -122,7 +122,7 @@ void jthread_map_push(T_jthreadMap *map, jlong tid, T_jthrowableCircularBuf *buf
 
     if (NULL == itm)
     {
-        T_jthreadMapItem *new = jthrowable_map_item_new(tid, buffer);
+        T_jthreadMapItem *new = jthrowable_map_item_new(tid, item);
         if (last == NULL)
         {
             map->items[index] = new;
@@ -138,39 +138,39 @@ void jthread_map_push(T_jthreadMap *map, jlong tid, T_jthrowableCircularBuf *buf
 
 
 
-T_jthrowableCircularBuf *jthread_map_get(T_jthreadMap *map, jlong tid)
+void *jthread_map_get(T_jthreadMap *map, jlong tid)
 {
     assert(NULL != map);
 
     pthread_mutex_lock(&map->mutex);
 
     const size_t index = tid % MAP_SIZE;
-    T_jthrowableCircularBuf *buffer = NULL;
+    void *data = NULL;
 
     for (T_jthreadMapItem *itm = map->items[index]; NULL != itm; itm = itm->next)
     {
         if (itm->tid == tid)
         {
-            buffer = itm->buffer;
+            data = itm->data;
             break;
         }
     }
 
     pthread_mutex_unlock(&map->mutex);
 
-    return buffer;
+    return data;
 }
 
 
 
-T_jthrowableCircularBuf *jthread_map_pop(T_jthreadMap *map, jlong tid)
+void *jthread_map_pop(T_jthreadMap *map, jlong tid)
 {
     assert(NULL != map);
 
     pthread_mutex_lock(&map->mutex);
 
     const size_t index = tid % MAP_SIZE;
-    T_jthrowableCircularBuf *buffer = NULL;
+    void *data = NULL;
     if (NULL != map->items[index])
     {
         T_jthreadMapItem *last = NULL;
@@ -183,7 +183,7 @@ T_jthrowableCircularBuf *jthread_map_pop(T_jthreadMap *map, jlong tid)
 
         if (NULL != itm)
         {
-            buffer = itm->buffer;
+            data = itm->data;
 
             if (NULL == last)
             {
@@ -200,7 +200,7 @@ T_jthrowableCircularBuf *jthread_map_pop(T_jthreadMap *map, jlong tid)
 
     pthread_mutex_unlock(&map->mutex);
 
-    return buffer;
+    return data;
 }
 
 
