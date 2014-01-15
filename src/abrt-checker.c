@@ -219,6 +219,7 @@ T_jthreadMap *threadMap;
 static char* get_path_to_class(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jclass class, char *class_name, const char *stringize_method_name);
 static void print_jvm_environment_variables_to_file(FILE *out);
 static char* format_class_name(char *class_signature, char replace_to);
+static int check_jvmti_error(jvmtiEnv *jvmti_env, jvmtiError error_code, const char *str);
 
 
 
@@ -404,26 +405,70 @@ static const char * null2empty(const char *str)
 }
 
 
+static char *get_exception_type_name(
+        jvmtiEnv *jvmti_env,
+        JNIEnv *jni_env,
+        jobject exception_object)
+{
+    jclass exception_class = (*jni_env)->GetObjectClass(jni_env, exception_object);
+
+    char *exception_name_ptr = NULL;
+
+    /* retrieve all required informations */
+    jvmtiError error_code = (*jvmti_env)->GetClassSignature(jvmti_env, exception_class, &exception_name_ptr, NULL);
+    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+        return NULL;
+
+    char *formated_exception_name_ptr = format_class_name(exception_name_ptr, '\0');
+    if (formated_exception_name_ptr != exception_name_ptr)
+    {
+        char *dest = exception_name_ptr;
+        char *src = formated_exception_name_ptr;
+
+        while(src[0] != '\0')
+        {
+            *dest = *src;
+            ++dest;
+            ++src;
+        }
+        dest[0] = '\0';
+    }
+
+    return exception_name_ptr;
+}
+
+
 
 /*
  * Returns non zero value if exception's type is intended to be reported even
  * if the exception was caught.
  */
-static int exception_is_intended_to_be_reported(const char *type_name)
+static int exception_is_intended_to_be_reported(
+        jvmtiEnv *jvmti_env,
+        JNIEnv *jni_env,
+        jobject exception_object,
+        char **exception_type)
 {
+    int retval = 0;
+
     if (reportedCaughExceptionTypes != NULL)
     {
+        *exception_type = get_exception_type_name(jvmti_env, jni_env, exception_object);
+        if (NULL == *exception_type)
+            return 0;
+
         /* special cases for selected exceptions */
         for (char **cursor = reportedCaughExceptionTypes; *cursor; ++cursor)
         {
-            if (strcmp(*cursor, type_name) == 0)
+            if (strcmp(*cursor, *exception_type) == 0)
             {
-                return 1;
+                retval = 1;
+                break;
             }
         }
     }
 
-    return 0;
+    return retval;
 }
 
 
@@ -695,18 +740,20 @@ static char* format_class_name(char *class_signature, char replace_to)
         {
             output++; /* goto to the next character */
         }
-        /* replace the last character in the class name */
-        /* but inly if this character is ';' */
-        char *last_char = output + strlen(output) - 1;
-        if (*last_char == ';')
-        {
-            *last_char = replace_to;
-        }
+
         /* replace all '/'s to '.'s */
         char *c;
         for (c = class_signature; *c != 0; c++)
         {
             if (*c == '/') *c = '.';
+        }
+
+        /* replace the last character in the class name */
+        /* but inly if this character is ';' */
+        /* c[0] == '\0' see the for loop above */
+        if (c != class_signature && c[-1] == ';')
+        {
+            c[-1] = replace_to;
         }
     }
     else
@@ -2053,52 +2100,17 @@ static void JNICALL callback_on_exception(
             jmethodID catch_method,
             jlocation catch_location __UNUSED_VAR)
 {
-    jvmtiError error_code;
-
-    char *method_name_ptr = NULL;
-    char *method_signature_ptr = NULL;
-    char *class_name_ptr = NULL;
-    char *class_signature_ptr = NULL;
-    char *exception_name_ptr = NULL;
-    char *updated_exception_name_ptr = NULL;
-
-    jclass method_class;
-    jclass exception_class;
+    char *exception_type_name = NULL;
 
     /* all operations should be processed in critical section */
     enter_critical_section(jvmti_env, shared_lock);
 
-    char tname[MAX_THREAD_NAME_LENGTH];
-    get_thread_name(jvmti_env, thr, tname, sizeof(tname));
-
-    exception_class = (*jni_env)->GetObjectClass(jni_env, exception_object);
-
-    /* retrieve all required informations */
-    error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
-    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
-        goto callback_on_exception_cleanup;
-
-    error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &method_class);
-    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
-        goto callback_on_exception_cleanup;
-
-    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, method_class, &class_signature_ptr, NULL);
-    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
-        goto callback_on_exception_cleanup;
-
-    error_code = (*jvmti_env)->GetClassSignature(jvmti_env, exception_class, &exception_name_ptr, NULL);
-    if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
-        goto callback_on_exception_cleanup;
-
     /* readable class names */
-    class_name_ptr = format_class_name(class_signature_ptr, '.');
-    updated_exception_name_ptr = format_class_name(exception_name_ptr, '\0');
-
-    INFO_PRINT("%s %s exception in thread \"%s\" ", (catch_method == NULL ? "Uncaught" : "Caught"), updated_exception_name_ptr, tname);
-    INFO_PRINT("in a method %s%s() with signature %s\n", class_name_ptr, method_name_ptr, method_signature_ptr);
-
-    if (catch_method == NULL || exception_is_intended_to_be_reported(updated_exception_name_ptr))
+    if (catch_method == NULL || exception_is_intended_to_be_reported(jvmti_env, jni_env, exception_object, &exception_type_name))
     {
+        char tname[MAX_THREAD_NAME_LENGTH];
+        get_thread_name(jvmti_env, thr, tname, sizeof(tname));
+
         jlong tid = 0;
         T_jthrowableCircularBuf *threads_exc_buf = NULL;
 
@@ -2114,19 +2126,43 @@ static void JNICALL callback_on_exception(
 
         if (NULL == threads_exc_buf || NULL == jthrowable_circular_buf_find(threads_exc_buf, exception_object))
         {
+            jvmtiError error_code;
+            jclass method_class;
+            char *method_name_ptr = NULL;
+            char *method_signature_ptr = NULL;
+            char *class_name_ptr = NULL;
+            char *class_signature_ptr = NULL;
+
             if (NULL != threads_exc_buf)
             {
                 VERBOSE_PRINT("Pushing to circular buffer\n");
                 jthrowable_circular_buf_push(threads_exc_buf, exception_object);
             }
 
+            error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
+            if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+                goto callback_on_exception_cleanup;
+
+            error_code = (*jvmti_env)->GetMethodDeclaringClass(jvmti_env, method, &method_class);
+            if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+                goto callback_on_exception_cleanup;
+
+            error_code = (*jvmti_env)->GetClassSignature(jvmti_env, method_class, &class_signature_ptr, NULL);
+            if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
+                goto callback_on_exception_cleanup;
+
+            class_name_ptr = format_class_name(class_signature_ptr, '.');
+
             /* Remove trailing '.' */
             const ssize_t class_name_len = strlen(class_name_ptr);
             if (class_name_len > 0)
                 class_name_ptr[class_name_len - 1] = '\0';
 
+            if (NULL == exception_type_name)
+                exception_type_name = get_exception_type_name(jvmti_env, jni_env, exception_object);
+
             char *message = format_exception_reason_message(/*caught?*/NULL != catch_method,
-                    updated_exception_name_ptr, class_name_ptr, method_name_ptr);
+                    exception_type_name, class_name_ptr, method_name_ptr);
 
             char *executable = NULL;
             char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object,
@@ -2143,6 +2179,24 @@ static void JNICALL callback_on_exception(
 
             free(message);
             free(stack_trace_str);
+
+callback_on_exception_cleanup:
+        /* cleapup */
+            if (method_name_ptr != NULL)
+            {
+                error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_name_ptr);
+                check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+            }
+            if (method_signature_ptr != NULL)
+            {
+                error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_signature_ptr);
+                check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+            }
+            if (class_signature_ptr != NULL)
+            {
+                error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)class_signature_ptr);
+                check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+            }
         }
         else
         {
@@ -2150,27 +2204,9 @@ static void JNICALL callback_on_exception(
         }
     }
 
-callback_on_exception_cleanup:
-    /* cleapup */
-    if (method_name_ptr != NULL)
+    if (NULL != exception_type_name)
     {
-        error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_name_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
-    }
-    if (method_signature_ptr != NULL)
-    {
-        error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)method_signature_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
-    }
-    if (class_signature_ptr != NULL)
-    {
-        error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)class_signature_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
-    }
-    if (exception_name_ptr != NULL)
-    {
-        error_code = (*jvmti_env)->Deallocate(jvmti_env, (unsigned char *)exception_name_ptr);
-        check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__));
+        free(exception_type_name);
     }
 
     exit_critical_section(jvmti_env, shared_lock);
