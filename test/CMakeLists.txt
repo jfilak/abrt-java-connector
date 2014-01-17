@@ -1,3 +1,5 @@
+project(test)
+
 set(HTTP_DIR "/var/www/html")
 set(SERVER_URL "http://localhost")
 
@@ -112,6 +114,10 @@ endfunction()
 
 function(_add_test target_name expected_exit_code)
     add_test(test_${target_name} /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/testdriver ${target_name} ${expected_exit_code} ${CMAKE_CURRENT_BINARY_DIR}/outputs/${target_name}.log ${CMAKE_CURRENT_BINARY_DIR}/${target_name}.log ${ARGN})
+endfunction()
+
+function(_add_analyze_test target_name)
+    add_test(test_${target_name} /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/analysis_testdriver ${CMAKE_BINARY_DIR}/utils ${test_BINARY_DIR}/outputs/backtrace_${target_name}.log ${test_BINARY_DIR}/${target_name}.log ${test_BINARY_DIR}/outputs/${target_name}.log)
 endfunction()
 
 _add_test_target(
@@ -308,6 +314,8 @@ _add_test_target(
 )
 _add_test(run_remote_thread 0)
 
+_add_analyze_test(not_reportable_1remote_class)
+_add_analyze_test(not_reportable_3remote_classes)
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
 add_custom_target(run_all DEPENDS ${all_run_targets})
