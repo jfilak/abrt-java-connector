@@ -44,6 +44,7 @@ typedef struct jthread_map_item {
 struct jthread_map {
     T_jthreadMapItem *items[MAP_SIZE]; ///< map elements
     pthread_mutex_t mutex;
+    size_t size;
 };
 
 
@@ -75,6 +76,10 @@ void jthread_map_free(T_jthreadMap *map)
 }
 
 
+int jthread_map_empty(T_jthreadMap *map)
+{
+    return 0 == map->size;
+}
 
 static T_jthreadMapItem *jthrowable_map_item_new(long tid, void *item)
 {
@@ -110,6 +115,7 @@ void jthread_map_push(T_jthreadMap *map, jlong tid, void *item)
     assert(NULL != map);
 
     pthread_mutex_lock(&map->mutex);
+    ++map->size;
 
     const long index = tid % MAP_SIZE;
     T_jthreadMapItem *last = NULL;
@@ -168,6 +174,7 @@ void *jthread_map_pop(T_jthreadMap *map, jlong tid)
     assert(NULL != map);
 
     pthread_mutex_lock(&map->mutex);
+    --map->size;
 
     const size_t index = tid % MAP_SIZE;
     void *data = NULL;

@@ -2251,11 +2251,8 @@ static void JNICALL callback_on_exception_catch(
             jlocation location __UNUSED_VAR,
             jobject   exception_object)
 {
-    jvmtiError error_code;
-
-    char *method_name_ptr = NULL;
-    char *method_signature_ptr = NULL;
-    char *class_signature_ptr = NULL;
+    if (jthread_map_empty(uncaughtExceptionMap))
+        return;
 
     /* all operations should be processed in critical section */
     enter_critical_section(jvmti_env, shared_lock);
@@ -2325,6 +2322,12 @@ static void JNICALL callback_on_exception_catch(
 
         if (NULL == threads_exc_buf || NULL == jthrowable_circular_buf_find(threads_exc_buf, rpt->exception_object))
         {
+            char *method_name_ptr = NULL;
+            char *method_signature_ptr = NULL;
+            char *class_signature_ptr = NULL;
+
+            jvmtiError error_code;
+
             /* retrieve all required informations */
             error_code = (*jvmti_env)->GetMethodName(jvmti_env, method, &method_name_ptr, &method_signature_ptr, NULL);
             if (check_jvmti_error(jvmti_env, error_code, __FILE__ ":" STRINGIZE(__LINE__)))
