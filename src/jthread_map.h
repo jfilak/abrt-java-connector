@@ -50,6 +50,16 @@ void jthread_map_free(T_jthreadMap *map);
 
 
 /*
+ * Checks whether the map is empty
+ *
+ * @param mam Pointer to @jthread_map
+ * @returns true if the map is empty, false otherwise
+ */
+int jthread_map_empty(T_jthreadMap *map);
+
+
+
+/*
  * Adds a new map item identified by @tid with value @item
  *
  * Does nothing if item with same @tid already exists in @map
