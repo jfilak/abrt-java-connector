@@ -35,25 +35,6 @@ make %{?_smp_mflags}
 %install
 make install DESTDIR=%{buildroot}
 
-# Remove unwanted Fedora specific workflow configuration files
-%if 0%{!?fedora:1}
-rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_FedoraJava.xml
-rm -f $RPM_BUILD_ROOT/%{_sysconfdir}/libreport/workflows.d/report_fedora_java.conf
-rm -f $RPM_BUILD_ROOT/%{_sysconfdir}/libreport/events.d/java_event_fedora.conf
-rm -f $RPM_BUILD_ROOT%{_mandir}/man5/report_fedora_java.conf.5
-rm -f $RPM_BUILD_ROOT%{_mandir}/man5/java_event_fedora.conf.5
-%endif
-
-# Remove unwanted RHEL specific workflow configuration files
-%if 0%{!?rhel:1}
-rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELJava.xml
-rm -f $RPM_BUILD_ROOT/%{_sysconfdir}/libreport/workflows.d/report_rhel_java.conf
-rm -f $RPM_BUILD_ROOT/%{_sysconfdir}/libreport/events.d/java_event_rhel.conf
-rm -f $RPM_BUILD_ROOT%{_mandir}/man5/report_rhel_java.conf.5
-rm -f $RPM_BUILD_ROOT%{_mandir}/man5/java_event_rhel.conf.5
-%endif
-
-
 %files
 %doc LICENSE README AUTHORS
 %config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_format_java.conf
@@ -62,22 +43,6 @@ rm -f $RPM_BUILD_ROOT%{_mandir}/man5/java_event_rhel.conf.5
 %{_mandir}/man5/java_event.conf.5*
 %{_mandir}/man5/bugzilla_format_java.conf.5*
 %{_mandir}/man5/bugzilla_formatdup_java.conf.5*
-
-%if 0%{?fedora}
-%{_datadir}/libreport/workflows/workflow_FedoraJava.xml
-%config(noreplace) %{_sysconfdir}/libreport/events.d/java_event_fedora.conf
-%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_fedora_java.conf
-%{_mandir}/man5/java_event_fedora.conf.5*
-%{_mandir}/man5/report_fedora_java.conf.5*
-%endif
-
-%if 0%{?rhel}
-%{_datadir}/libreport/workflows/workflow_RHELJava.xml
-%config(noreplace) %{_sysconfdir}/libreport/events.d/java_event_rhel.conf
-%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_rhel_java.conf
-%{_mandir}/man5/java_event_rhel.conf.5*
-%{_mandir}/man5/report_rhel_java.conf.5*
-%endif
 
 # install only unversioned shared object because the package is a Java plugin
 # and not a system library but unfortunately the library must be placed in ld
