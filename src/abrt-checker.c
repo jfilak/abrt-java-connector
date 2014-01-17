@@ -77,6 +77,8 @@
 /* Enables checks based on JVMTI_EVENT_COMPILED_METHOD_LOAD */
 /* #define ABRT_COMPILED_METHOD_LOAD_CHECK */
 
+#define NOT_PERFORMANCE_TEST 0
+
 
 /* Basic settings */
 #define VM_MEMORY_ALLOCATION_THRESHOLD 1024
@@ -1276,6 +1278,7 @@ static void JNICALL callback_on_thread_start(
             JNIEnv   *jni_env,
             jthread  thread)
 {
+#if NOT_PERFORMANCE_TEST
     INFO_PRINT("ThreadStart\n");
     if (NULL == threadMap)
     {
@@ -1298,6 +1301,10 @@ static void JNICALL callback_on_thread_start(
     }
 
     jthread_map_push(threadMap, tid, (void *)threads_exc_buf);
+#else
+    for (int i = 0; i < 10; ++i)
+        ;
+#endif //NOT_PERFORMANCE_TEST
 }
 
 
@@ -1310,6 +1317,7 @@ static void JNICALL callback_on_thread_end(
             JNIEnv   *jni_env,
             jthread  thread)
 {
+#if NOT_PERFORMANCE_TEST
     INFO_PRINT("ThreadEnd\n");
     if (NULL == threadMap)
     {
@@ -1347,6 +1355,10 @@ static void JNICALL callback_on_thread_end(
     {
         jthrowable_circular_buf_free(threads_exc_buf);
     }
+#else
+    for (int i = 0; i < 10; ++i)
+        ;
+#endif //NOT_PERFORMANCE_TEST
 }
 
 
@@ -2093,6 +2105,7 @@ static void JNICALL callback_on_exception(
             jmethodID catch_method,
             jlocation catch_location __UNUSED_VAR)
 {
+#if NOT_PERFORMANCE_TEST
     /* This is caught exception and no caught exception is to be reported */
     if (NULL != catch_method && NULL == reportedCaughExceptionTypes)
         return;
@@ -2237,6 +2250,10 @@ callback_on_exception_cleanup:
     }
 
     exit_critical_section(jvmti_env, shared_lock);
+#else
+    for (int i = 0; i < 10; ++i)
+        ;
+#endif //NOT_PERFORMANCE_TEST
 }
 
 
@@ -2251,6 +2268,7 @@ static void JNICALL callback_on_exception_catch(
             jlocation location __UNUSED_VAR,
             jobject   exception_object)
 {
+#if NOT_PERFORMANCE_TEST
     jvmtiError error_code;
 
     char *method_name_ptr = NULL;
@@ -2374,6 +2392,10 @@ callback_on_exception_catch_cleanup:
 
 callback_on_exception_catch_exit:
     exit_critical_section(jvmti_env, shared_lock);
+#else
+    for (int i = 0; i < 10; ++i)
+        ;
+#endif //NOT_PERFORMANCE_TEST
 }
 
 
