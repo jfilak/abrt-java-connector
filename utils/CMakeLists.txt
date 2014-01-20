@@ -32,3 +32,5 @@ target_link_libraries(abrt-action-analyze-java ${PC_LIBREPORT_LIBRARIES})
 target_link_libraries(abrt-action-analyze-java ${PC_ABRT_LIBRARIES})
 
 install(TARGETS abrt-action-analyze-java DESTINATION ${BIN_INSTALL_DIR})
+
+install(FILES abrt-action-analyze-java.1 DESTINATION ${MAN_INSTALL_DIR}/man1)
