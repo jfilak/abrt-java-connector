@@ -1,0 +1,19 @@
+#!/bin/sh
+# Help:
+#   $1 - path to analysis tool
+#   $2 - path to input file
+#   $3 - path to output log file
+#   $4 - path to expected output log file
+#
+
+$1/abrt-action-analyze-java -f $2 -o > $3 || exit 1
+
+diff -u $4 $3
+EC=$?
+
+if [ 0 -ne $EC ]; then
+    echo "Expected $4 differs from result $3"
+    exit 1
+fi
+
+exit 0
