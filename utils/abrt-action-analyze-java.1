@@ -1,0 +1,81 @@
+'\" t
+.\"     Title: abrt-action-analyze-java
+.\"    Author: [see the "AUTHORS" section]
+.\"      Date: 01/19/2014
+.\"    Manual: ABRT Manual
+.\"  Language: English
+.\"
+.TH "ABRT\-ACTION\-ANALYZ" "1" "01/19/2014" "abrt-java-connector" "ABRT Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+abrt-action-analyze-java \- Calculate and save UUID & DUPHASH and determine the level of usability for reporting of a Java stack trace\&.
+.SH "SYNOPSIS"
+.sp
+\fIabrt\-action\-analyze\-java\fR [\-v] [\-d DIR] [\-o] [\-f FILE]
+.SH "DESCRIPTION"
+.sp
+The tool reads the file named \fIbacktrace\fR from a problem data directory, processes it and generates a universally unique identifier (UUID)\&. Then it saves this data as new element \fIuuid\fR\&. It also checks whether the stack trace contains a remote address in any of its frames and if so it creates \fInot-reportable\fR element whose contents explains why the stack trace should not be reported into a bug tracking system\&.
+.SS "Integration with ABRT events"
+.sp
+\fIabrt\-action\-analyze\-java\fR can be used to generate the UUID & DUPHAS of a newly saved Java stack trace\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+EVENT=post\-create analyzer=Java   abrt\-action\-analyze\-java
+.fi
+.if n \{\
+.RE
+.\}
+.SH "OPTIONS"
+.PP
+\-d DIR
+.RS 4
+Path to a problem directory\&. The tool reads the backtrace from stdin when neither this option nor -f is provided\&.
+.RE
+.PP
+\-f FILE
+.RS 4
+Path to a stack trace\&. The tool reads the backtrace from stdin when neither this option nor -d is provided\&.
+.RE
+.PP
+\-o
+.RS 4
+Print the result to stdout\&.
+.RE
+.PP
+\-v
+.RS 4
+Be more verbose\&. Can be given multiple times\&.
+.RE
+.SH "AUTHORS"
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ABRT team
+.RE
