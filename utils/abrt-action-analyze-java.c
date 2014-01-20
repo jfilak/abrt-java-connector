@@ -17,12 +17,23 @@
 */
 
 #include <satyr/location.h>
+#include <satyr/thread.h>
 #include <satyr/java/stacktrace.h>
 #include <satyr/java/thread.h>
 #include <satyr/java/frame.h>
 
 #include <abrt/libabrt.h>
 #include <stdlib.h>
+
+/* 4 = 1 exception + 3 methods */
+#define FRAMES_FOR_DUPHASH 4
+
+typedef struct
+{
+    const char *name;
+    char *data;
+    int nofree;
+} analysis_result_t;
 
 static char *
 backtrace_from_dump_dir(const char *dir_name)
@@ -44,37 +55,62 @@ backtrace_from_dump_dir(const char *dir_name)
 }
 
 static void
-write_not_reportable_message_to_dump_dir(const char *dir_name, const char *message)
+write_results_to_dump_dir(const char *dir_name,
+        const analysis_result_t *res_begin, const analysis_result_t *res_end)
 {
     struct dump_dir *dd = dd_opendir(dir_name, /*Open for writing*/0);
     if (NULL != dd)
     {
-        dd_save_text(dd, FILENAME_NOT_REPORTABLE, message);
+        const analysis_result_t *res = res_begin;
+
+        for ( ; res != res_end; ++res)
+            dd_save_text(dd, res->name, res->data);
+
         dd_close(dd);
     }
 }
 
 static void
-write_not_reportable_message_to_fd(int fdout, const char *message)
+write_to_fd(int fdout, const char *message)
 {
     full_write(fdout, message, strlen(message));
     full_write(fdout, "\n", 1);
 }
 
-static void
-write_not_reportable_message_to_file(const char *file_name, const char *message)
-{
-    int fdout = open(file_name,
-            O_WRONLY | O_TRUNC | O_CREAT | O_NOFOLLOW,
-            S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
 
-    if (0 > fdout)
+static void
+write_results_to_fd(int fdout,
+        const analysis_result_t *res_begin, const analysis_result_t *res_end)
+{
+    const analysis_result_t *res = res_begin;
+
+    for ( ; res != res_end; ++res)
     {
-        perror_msg("Can't open file '%s' for writing", file_name);
-        return;
+        write_to_fd(fdout, res->name);
+        write_to_fd(fdout, res->data);
     }
-    write_not_reportable_message_to_fd(fdout, message);
-    close(fdout);
+}
+
+static void
+write_results_to_file(const analysis_result_t *res_begin, const analysis_result_t *res_end)
+{
+    const analysis_result_t *res = res_begin;
+
+    for ( ; res != res_end; ++res)
+    {
+        int fdout = open(res->name,
+                O_WRONLY | O_TRUNC | O_CREAT | O_NOFOLLOW,
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
+
+        if (0 > fdout)
+        {
+            perror_msg("Can't open file '%s' for writing", res->name);
+            continue;
+        }
+
+        write_to_fd(fdout, res->data);
+        close(fdout);
+    }
 }
 
 static char *
@@ -89,50 +125,46 @@ backtrace_from_file(const char *file_name)
     return xmalloc_xopen_read_close(file_name, /*no size limit*/NULL);
 }
 
-typedef void (*frame_cb)(struct sr_java_frame *frame, void *args);
-
-typedef struct {
-    frame_cb callback;
-    void *args;
-} frame_proc_t;
-
-static void
-iterate_trough_stacktrace(struct sr_java_stacktrace *stacktrace, frame_proc_t **fproc)
+static char *
+work_out_list_of_remote_urls(struct sr_java_stacktrace *stacktrace)
 {
+    struct strbuf *remote_files_csv = strbuf_new();
     struct sr_java_thread *thread = stacktrace->threads;
     while (NULL != thread)
     {
         struct sr_java_frame *frame = thread->frames;
         while (NULL != frame)
         {
-            frame_proc_t **it = fproc;
-            while (NULL != *it)
+            if (NULL != frame->class_path && prefixcmp(frame->class_path, "file://") != 0)
             {
-                (*it)->callback(frame, (*it)->args);
-                ++it;
+                struct stat buf;
+                if (stat(frame->class_path, &buf) && errno == ENOENT)
+                {
+                    if (strstr(remote_files_csv->buf, frame->class_path) == NULL)
+                    {
+                        log_debug("Adding a new path to the list of remote paths: '%s'", frame->class_path);
+                        strbuf_append_strf(remote_files_csv, "%s%s",
+                                remote_files_csv->buf[0] != '\0' ? ", " : "",
+                                frame->class_path);
+                    }
+                    else
+                        log_debug("The list of remote paths already contains path: '%s'", frame->class_path);
+                }
+                else
+                    log_debug("Class path exists or is malformed: '%s'", frame->class_path);
             }
             frame = frame->next;
         }
         thread = thread->next;
     }
-}
 
-static void
-work_out_list_of_remote_urls(struct sr_java_frame *frame, struct strbuf *remote_files_csv)
-{
-    if (NULL != frame->class_path && prefixcmp(frame->class_path, "file://") != 0)
+    if (remote_files_csv->buf[0] != '\0')
     {
-        struct stat buf;
-        if (stat(frame->class_path, &buf) && errno == ENOENT)
-        {
-            if (strstr(remote_files_csv->buf, frame->class_path) == NULL)
-            {
-                strbuf_append_strf(remote_files_csv, "%s%s",
-                        remote_files_csv->buf[0] != '\0' ? ", " : "",
-                        frame->class_path);
-            }
-        }
+        return strbuf_free_nobuf(remote_files_csv);
     }
+
+    strbuf_free(remote_files_csv);
+    return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -153,7 +185,9 @@ int main(int argc, char *argv[])
     const char *program_usage_string = _(
         "& [[-d DIR] | [-f FILE]] [-o]\n"
         "\n"
-        "Analyzes Java backtrace\n"
+        "Analyzes Java backtrace, generates duplication hash and creates\n"
+        "not-reportable file for bracktraces whose frames have remote files in their\n"
+        "class path\n"
     );
     enum {
         OPT_v = 1 << 0,
@@ -208,49 +242,72 @@ int main(int argc, char *argv[])
         goto finish;
     }
 
-    struct strbuf *remote_files_csv = strbuf_new();
-    frame_proc_t remote_files_proc = {
-        .callback = (frame_cb)&work_out_list_of_remote_urls,
-        .args = (void *)remote_files_csv
-    };
+    analysis_result_t results[3] = { { 0 } };
+    analysis_result_t *results_iter = results;
 
-    frame_proc_t *fproc[] = {
-        &remote_files_proc,
-        //duphash_proc,
-        //backtrace_usability,
-        NULL,
-    };
+    char *remote_files_csv = work_out_list_of_remote_urls(stacktrace);
 
-    iterate_trough_stacktrace(stacktrace, fproc);
+    char *hash_str = NULL;
+    struct sr_thread *crash_thread = (struct sr_thread *)stacktrace->threads;
+    if (g_verbose >= 3)
+    {
+        hash_str = sr_thread_get_duphash(crash_thread, FRAMES_FOR_DUPHASH,
+                /*noprefix*/NULL, SR_DUPHASH_NOHASH);
+        log("Generating duphash from string: '%s'", hash_str);
+        free(hash_str);
+    }
+
+    hash_str = sr_thread_get_duphash(crash_thread, FRAMES_FOR_DUPHASH,
+            /*noprefix*/NULL, SR_DUPHASH_NORMAL);
+
+    /* DUPHASH is used for searching for duplicates in Bugzilla */
+    results_iter->name = FILENAME_DUPHASH;
+    results_iter->data = hash_str;
+    ++results_iter;
+
+    /* UUID is used for local deduplication */
+    results_iter->name = FILENAME_UUID;
+    results_iter->data = hash_str;
+    results_iter->nofree = 1;
+    ++results_iter;
 
     sr_java_stacktrace_free(stacktrace);
 
-    if ('\0' != remote_files_csv->buf[0])
+    if (NULL != remote_files_csv)
     {
-        char *not_reportable_message = xasprintf(
+        results_iter->name = FILENAME_NOT_REPORTABLE;
+        results_iter->data = xasprintf(
         _("This problem can be caused by a 3rd party code from the "\
         "jar/class at %s. In order to provide valuable problem " \
         "reports, ABRT will not allow you to submit this problem. If you " \
         "still want to participate in solving this problem, please contact " \
-        "the developers directly."), remote_files_csv->buf);
-
-        if (opts & OPT_o)
-        {
-            write_not_reportable_message_to_fd(STDOUT_FILENO,  not_reportable_message);
-        }
-        else if (NULL != dump_dir_name)
-        {
-            write_not_reportable_message_to_dump_dir(dump_dir_name,  not_reportable_message);
-        }
-        else
-        {   /* Just write it to the current working directory */
-            write_not_reportable_message_to_file(FILENAME_NOT_REPORTABLE,  not_reportable_message);
-        }
-
-        free(not_reportable_message);
+        "the developers directly."), remote_files_csv);
+        ++results_iter;
+        free(remote_files_csv);
     }
 
-    strbuf_free(remote_files_csv);
+    if (opts & OPT_o)
+    {
+        write_results_to_fd(STDOUT_FILENO, results, results_iter);
+    }
+    else if (NULL != dump_dir_name)
+    {
+        write_results_to_dump_dir(dump_dir_name, results, results_iter);
+    }
+    else
+    {   /* Just write it to the current working directory */
+        write_results_to_file(results, results_iter);
+    }
+
+    const analysis_result_t *res = results;
+    for (; res != results_iter; ++res)
+    {
+        if (!res->nofree)
+        {
+            free(res->data);
+        }
+    }
+
     retval = 0;
 finish:
 
