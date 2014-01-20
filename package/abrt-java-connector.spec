@@ -12,7 +12,9 @@ URL:		https://github.com/jfilak/abrt-java-connector
 Source0:	https://github.com/jfilak/%{name}/archive/%{commit}/%{name}-%{version}-%{shortcommit}.tar.gz
 
 BuildRequires:	cmake
+BuildRequires:	satyr-devel
 BuildRequires:	libreport-devel
+BuildRequires:	abrt-devel
 BuildRequires:	java-1.7.0-openjdk-devel
 BuildRequires:	systemd-devel
 
