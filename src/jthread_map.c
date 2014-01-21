@@ -115,7 +115,6 @@ void jthread_map_push(T_jthreadMap *map, jlong tid, void *item)
     assert(NULL != map);
 
     pthread_mutex_lock(&map->mutex);
-    ++map->size;
 
     const long index = tid % MAP_SIZE;
     T_jthreadMapItem *last = NULL;
@@ -128,6 +127,8 @@ void jthread_map_push(T_jthreadMap *map, jlong tid, void *item)
 
     if (NULL == itm)
     {
+        ++map->size;
+
         T_jthreadMapItem *new = jthrowable_map_item_new(tid, item);
         if (last == NULL)
         {
@@ -174,7 +175,6 @@ void *jthread_map_pop(T_jthreadMap *map, jlong tid)
     assert(NULL != map);
 
     pthread_mutex_lock(&map->mutex);
-    --map->size;
 
     const size_t index = tid % MAP_SIZE;
     void *data = NULL;
@@ -204,6 +204,9 @@ void *jthread_map_pop(T_jthreadMap *map, jlong tid)
             jthread_map_item_free(itm);
         }
     }
+
+    if (NULL != data)
+        --map->size;
 
     pthread_mutex_unlock(&map->mutex);
 
