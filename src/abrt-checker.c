@@ -591,8 +591,7 @@ static void register_abrt_event(
 static void report_stacktrace(
         const char *executable,
         const char *message,
-        const char *stacktrace,
-        int sure_unique)
+        const char *stacktrace)
 {
     if (reportErrosTo & ED_SYSLOG)
     {
@@ -621,7 +620,7 @@ static void report_stacktrace(
         log_print("executable: %s\n", executable);
     }
 
-    if (NULL != stacktrace && sure_unique)
+    if (NULL != stacktrace)
     {
         VERBOSE_PRINT("Reporting stack trace to ABRT");
         register_abrt_event(executable, message, stacktrace);
@@ -1269,35 +1268,24 @@ static void JNICALL callback_on_vm_death(
 
 
 /*
- * Called before thread end.
+ * Former callback_on_thread_start but it is not necessary to create an empty
+ * structures and waste CPU time because it is more likely that no exception
+ * will occur during the thread's lifetime. So, we converted the callback to a
+ * function which can be used for initialization of the internal structures.
  */
-static void JNICALL callback_on_thread_start(
-            jvmtiEnv *jvmti_env __UNUSED_VAR,
+static T_jthrowableCircularBuf *create_exception_buf_for_thread(
             JNIEnv   *jni_env,
-            jthread  thread)
+            jlong tid)
 {
-    INFO_PRINT("ThreadStart\n");
-    if (NULL == threadMap)
-    {
-        return;
-    }
-
-    jlong tid = 0;
-
-    if (get_tid(jni_env, thread, &tid))
-    {
-        VERBOSE_PRINT("Cannot malloc thread's exception buffer because cannot get TID");
-        return;
-    }
-
     T_jthrowableCircularBuf *threads_exc_buf = jthrowable_circular_buf_new(jni_env, REPORTED_EXCEPTION_STACK_CAPACITY);
     if (NULL == threads_exc_buf)
     {
         fprintf(stderr, "Cannot enable check for already reported exceptions. Disabling reporting to ABRT in current thread!");
-        return;
+        return NULL;
     }
 
     jthread_map_push(threadMap, tid, (void *)threads_exc_buf);
+    return threads_exc_buf;
 }
 
 
@@ -1316,36 +1304,38 @@ static void JNICALL callback_on_thread_end(
         return;
     }
 
-    jlong tid = 0;
-
-    if (get_tid(jni_env, thread, &tid))
+    if (!jthread_map_empty(threadMap) || !jthread_map_empty(uncaughtExceptionMap))
     {
-        VERBOSE_PRINT("Cannot free thread's exception buffer because cannot get TID");
-        return;
-    }
+        jlong tid = 0;
 
-    T_exceptionReport *rpt = (T_exceptionReport *)jthread_map_pop(uncaughtExceptionMap, tid);
-    T_jthrowableCircularBuf *threads_exc_buf = (T_jthrowableCircularBuf *)jthread_map_pop(threadMap, tid);
-
-    if (NULL != rpt)
-    {
-        if (NULL == threads_exc_buf || NULL == jthrowable_circular_buf_find(threads_exc_buf, rpt->exception_object))
+        if (get_tid(jni_env, thread, &tid))
         {
-            report_stacktrace(NULL != rpt->executable ? rpt->executable : processProperties.main_class,
-                              NULL != rpt->message ? rpt->message : "Uncaught exception",
-                              rpt->stacktrace,
-                              NULL != threads_exc_buf);
+            VERBOSE_PRINT("Cannot free thread's exception buffer because cannot get TID");
+            return;
         }
 
-        free(rpt->message);
-        free(rpt->stacktrace);
-        free(rpt->executable);
-        free(rpt->exception_type_name);
-    }
+        T_exceptionReport *rpt = (T_exceptionReport *)jthread_map_pop(uncaughtExceptionMap, tid);
+        T_jthrowableCircularBuf *threads_exc_buf = (T_jthrowableCircularBuf *)jthread_map_pop(threadMap, tid);
 
-    if (threads_exc_buf != NULL)
-    {
-        jthrowable_circular_buf_free(threads_exc_buf);
+        if (NULL != rpt)
+        {
+            if (NULL == threads_exc_buf || NULL == jthrowable_circular_buf_find(threads_exc_buf, rpt->exception_object))
+            {
+                report_stacktrace(NULL != rpt->executable ? rpt->executable : processProperties.main_class,
+                                  NULL != rpt->message ? rpt->message : "Uncaught exception",
+                                  rpt->stacktrace);
+            }
+
+            free(rpt->message);
+            free(rpt->stacktrace);
+            free(rpt->executable);
+            free(rpt->exception_type_name);
+        }
+
+        if (threads_exc_buf != NULL)
+        {
+            jthrowable_circular_buf_free(threads_exc_buf);
+        }
     }
 }
 
@@ -2193,8 +2183,10 @@ static void JNICALL callback_on_exception(
             {
                 report_stacktrace(NULL != executable ? executable : processProperties.main_class,
                         report_message,
-                        stack_trace_str,
-                        NULL != threads_exc_buf);
+                        stack_trace_str);
+
+                if (NULL == threads_exc_buf)
+                    threads_exc_buf = create_exception_buf_for_thread(jni_env, tid);
 
                 if (NULL != threads_exc_buf)
                 {
@@ -2346,8 +2338,10 @@ static void JNICALL callback_on_exception_catch(
             char *message = format_exception_reason_message(/*caught*/1, rpt->exception_type_name,  class_name_ptr, method_name_ptr);
             report_stacktrace(NULL != rpt->executable ? rpt->executable : processProperties.main_class,
                               NULL != message ? message : "Caught exception",
-                              rpt->stacktrace,
-                              NULL != threads_exc_buf);
+                              rpt->stacktrace);
+
+            if (NULL == threads_exc_buf)
+                threads_exc_buf = create_exception_buf_for_thread(jni_env, tid);
 
             if (NULL != threads_exc_buf)
             {
@@ -2584,9 +2578,6 @@ jvmtiError register_all_callback_functions(jvmtiEnv *jvmti_env)
     callbacks.VMDeath = &callback_on_vm_death;
 #endif /* ABRT_VM_DEATH_CHECK */
 
-    /* JVMTI_EVENT_THREAD_START */
-    callbacks.ThreadStart = &callback_on_thread_start;
-
     /* JVMTI_EVENT_THREAD_END */
     callbacks.ThreadEnd = &callback_on_thread_end;
 
@@ -2658,11 +2649,6 @@ jvmtiError set_event_notification_modes(jvmtiEnv* jvmti_env)
         return error_code;
     }
 #endif /* ABRT_VM_DEATH_CHECK */
-
-    if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_THREAD_START)) != JNI_OK)
-    {
-        return error_code;
-    }
 
     if ((error_code = set_event_notification_mode(jvmti_env, JVMTI_EVENT_THREAD_END)) != JNI_OK)
     {
