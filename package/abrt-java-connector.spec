@@ -20,6 +20,8 @@ BuildRequires:	systemd-devel
 BuildRequires:	gettext
 BuildRequires:	check-devel
 BuildRequires:	rpm-devel
+BuildRequires:	systemd
+%{?systemd_requires}
 
 Requires:	abrt
 
@@ -47,6 +49,8 @@ make install DESTDIR=%{buildroot}
 %config(noreplace) %{_sysconfdir}/libreport/events.d/java_event.conf
 %config(noreplace) %{_sysconfdir}/abrt/plugins/java.conf
 %{_bindir}/abrt-action-analyze-java
+%{_libexecdir}/abrt-java-connector
+%{_unitdir}/abrt-java.service
 %{_mandir}/man1/abrt-action-analyze-java.1*
 %{_mandir}/man5/java_event.conf.5*
 %{_mandir}/man5/bugzilla_format_java.conf.5*
@@ -63,11 +67,18 @@ make install DESTDIR=%{buildroot}
 make test
 
 
-%post -p /sbin/ldconfig
+%post
+/sbin/ldconfig
+%systemd_post abrt-java.service
 
 
-%postun -p /sbin/ldconfig
+%preun
+%systemd_preun abrt-java.service
 
+
+%postun
+/sbin/ldconfig
+%systemd_postun_with_restart abrt-java.service
 
 
 %changelog
