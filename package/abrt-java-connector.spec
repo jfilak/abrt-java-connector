@@ -1,8 +1,8 @@
-%global commit 873f82e89b01478edb8e286ae79fe7e91bf470ea
+%global commit a265e4e6162084cb17fd9507525345c86cfb8d10
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 Name:		abrt-java-connector
-Version:	1.0.7
+Version:	1.0.8
 Release:	1%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
@@ -17,6 +17,7 @@ BuildRequires:	libreport-devel
 BuildRequires:	abrt-devel
 BuildRequires:	java-1.7.0-openjdk-devel
 BuildRequires:	systemd-devel
+BuildRequires:	gettext
 
 Requires:	abrt
 
@@ -66,6 +67,14 @@ make test
 
 
 %changelog
+* Wed Jan 22 2014 Jakub Filak <jfilak@redhat.com> - 1.0.8-1
+- Do not report exceptions caught in a native method
+- Mark stack traces with 3rd party classes as not-reportable
+- Calculate 'duphash' & 'uuid' in satyr
+- Use the main class URL for 'executable'
+- Do not ship own reporting workflow definitions
+- Code optimizations
+
 * Fri Jan 10 2014 Jakub Filak <jfilak@redhat.com> - 1.0.7-1
 - Use the last frame class path for executable
 - Gracefully handle JVMTI errors
