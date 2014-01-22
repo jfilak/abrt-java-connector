@@ -2886,7 +2886,11 @@ void parse_commandline_options(char *options)
         }
         else if (strcmp("executable", key) == 0)
         {
-            if (strcmp("threadclass", value) == 0)
+            if (NULL == value || '\0' == value[0])
+            {
+                fprintf(stderr, "A value of '%s' option cannot be empty\n", key);
+            }
+            else if (strcmp("threadclass", value) == 0)
             {
                 VERBOSE_PRINT("Use a thread class for 'executable'\n");
                 executableFlags |= ABRT_EXECUTABLE_THREAD;
@@ -2899,7 +2903,7 @@ void parse_commandline_options(char *options)
             }
             else
             {
-                fprintf(stderr, "Unknown 'executable' option's value '%s'\n", key);
+                fprintf(stderr, "Unknown '%s' option's value '%s'\n", key, value);
             }
         }
         else
