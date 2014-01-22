@@ -55,6 +55,7 @@ T_jthreadMap *jthread_map_new()
     if (NULL == map)
     {
         fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": calloc() error\n");
+        return NULL;
     }
 
     pthread_mutex_init(&map->mutex, /*use default attributes*/NULL);
