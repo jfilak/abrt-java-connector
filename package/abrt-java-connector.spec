@@ -2,7 +2,7 @@
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 Name:		abrt-java-connector
-Version:	1.0.7
+Version:	1.0.6
 Release:	1%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
@@ -17,8 +17,9 @@ BuildRequires:	libreport-devel
 BuildRequires:	abrt-devel
 BuildRequires:	java-1.7.0-openjdk-devel
 BuildRequires:	systemd-devel
+BuildRequires:	gettext
 
-Requires:	abrt
+Requires:	abrt >= 2.1.11-3
 
 %description
 JNI library providing an agent capable to process both caught and uncaught
@@ -66,7 +67,11 @@ make test
 
 
 %changelog
-* Fri Jan 10 2014 Jakub Filak <jfilak@redhat.com> - 1.0.7-1
+* Fri Jan 20 2014 Jakub Filak <jfilak@redhat.com> - 1.0.6-2
+- Mark stack trace with remote paths as not-reportable
+- Do not provide own reporting workflows
+- Code optimization
+- Do not report exception caught by native functions
 - Use the last frame class path for executable
 - Gracefully handle JVMTI errors
 - Add an abstract to README
