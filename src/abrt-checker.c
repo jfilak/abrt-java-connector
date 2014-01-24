@@ -33,6 +33,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <math.h>
 #include <time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -226,6 +228,21 @@ T_jthreadMap *threadMap;
 
 /* Map of uncaught exceptions. There should be only 1 per thread.*/
 T_jthreadMap *uncaughtExceptionMap;
+
+#define COUNTER_MUTEX_PAIR(counterName) \
+    static unsigned long counterName; \
+    static pthread_mutex_t mtx_##counterName = PTHREAD_MUTEX_INITIALIZER;
+
+COUNTER_MUTEX_PAIR(exceptionUncaughtCounter)
+COUNTER_MUTEX_PAIR(exceptionCaughtCounter)
+COUNTER_MUTEX_PAIR(eventCatchExceptionCounter)
+COUNTER_MUTEX_PAIR(eventCatchExceptionWastedCounter)
+COUNTER_MUTEX_PAIR(eventCatchExceptionPromisingCounter)
+COUNTER_MUTEX_PAIR(eventCatchExceptionUncaughtCounter)
+COUNTER_MUTEX_PAIR(threadEndCleanCounter)
+COUNTER_MUTEX_PAIR(threadEndUncaughtCounter)
+
+#define INC_COUNTER(counterName) pthread_mutex_lock(&mtx_##counterName); ++counterName; pthread_mutex_unlock(&mtx_##counterName);
 
 
 /* forward headers */
@@ -1306,6 +1323,7 @@ static void JNICALL callback_on_thread_end(
 
     if (!jthread_map_empty(threadMap) || !jthread_map_empty(uncaughtExceptionMap))
     {
+        INC_COUNTER(threadEndUncaughtCounter);
         jlong tid = 0;
 
         if (get_tid(jni_env, thread, &tid))
@@ -1336,6 +1354,10 @@ static void JNICALL callback_on_thread_end(
         {
             jthrowable_circular_buf_free(threads_exc_buf);
         }
+    }
+    else
+    {
+        INC_COUNTER(threadEndCleanCounter);
     }
 }
 
@@ -2083,6 +2105,15 @@ static void JNICALL callback_on_exception(
             jmethodID catch_method,
             jlocation catch_location __UNUSED_VAR)
 {
+    if (NULL == catch_method)
+    {
+        INC_COUNTER(exceptionUncaughtCounter);
+    }
+    else
+    {
+        INC_COUNTER(exceptionCaughtCounter);
+    }
+
     /* This is caught exception and no caught exception is to be reported */
     if (NULL != catch_method && NULL == reportedCaughExceptionTypes)
         return;
@@ -2244,7 +2275,10 @@ static void JNICALL callback_on_exception_catch(
             jobject   exception_object)
 {
     if (jthread_map_empty(uncaughtExceptionMap))
+    {
+        INC_COUNTER(eventCatchExceptionCounter);
         return;
+    }
 
     /* all operations should be processed in critical section */
     enter_critical_section(jvmti_env, shared_lock);
@@ -2262,9 +2296,11 @@ static void JNICALL callback_on_exception_catch(
     T_exceptionReport *rpt = (T_exceptionReport *)jthread_map_get(uncaughtExceptionMap, tid);
     if (NULL == rpt)
     {
+        INC_COUNTER(eventCatchExceptionWastedCounter);
         goto callback_on_exception_catch_exit;
     }
 
+    INC_COUNTER(eventCatchExceptionPromisingCounter);
     jclass object_class = (*jni_env)->FindClass(jni_env, "java/lang/Object");
     if (check_and_clear_exception(jni_env) || NULL == object_class)
     {
@@ -2296,6 +2332,7 @@ static void JNICALL callback_on_exception_catch(
      * initialization of the system (native) class loader.
      */
     jthread_map_pop(uncaughtExceptionMap, tid);
+    INC_COUNTER(eventCatchExceptionUncaughtCounter);
 
     if (exception_is_intended_to_be_reported(jvmti_env, jni_env, rpt->exception_object, &(rpt->exception_type_name)))
     {
@@ -2991,6 +3028,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
         fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can not create a set of uncaught exceptions\n");
         return -1;
     }
+
     return JNI_OK;
 }
 
@@ -3006,6 +3044,69 @@ JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
     INFO_PRINT("Agent_OnUnLoad\n");
     if (outputFileName != DISABLED_LOG_OUTPUT)
     {
+        FILE *res = get_log_file();
+
+        unsigned long tmp_arr[] = {
+                exceptionUncaughtCounter,
+                exceptionCaughtCounter,
+                exceptionUncaughtCounter,
+                eventCatchExceptionCounter,
+                eventCatchExceptionWastedCounter,
+                eventCatchExceptionPromisingCounter,
+                eventCatchExceptionUncaughtCounter,
+                eventCatchExceptionCounter,
+                threadEndCleanCounter,
+                threadEndUncaughtCounter,
+        };
+
+        unsigned long max = 0;
+        for (size_t i=0; i < sizeof(tmp_arr)/sizeof(tmp_arr[0]); ++i) {
+            if (max < tmp_arr[i])
+                max = tmp_arr[i];
+        }
+        const int width = log10(max) + 1;
+
+        fprintf(res,
+                "Exception  : Uncaught      : %*lu\n" \
+                "Exception  : Caught        : %*lu\n" \
+                "Exception  : Total         : %*lu\n" \
+                "Catch      : No processing : %*lu\n" \
+                "Catch      : Vain work     : %*lu\n" \
+                "Catch      : Promising     : %*lu\n" \
+                "Catch      : Uncaught      : %*lu\n" \
+                "Catch      : Total         : %*lu\n" \
+                "Thread End : No processing : %*lu\n" \
+                "Thread End : Clean up      : %*lu\n" \
+                "Thread End : Total         : %*lu\n",
+                width,
+                exceptionUncaughtCounter,
+                width,
+                exceptionCaughtCounter,
+                width,
+                exceptionUncaughtCounter
+                    + exceptionCaughtCounter,
+                width,
+                eventCatchExceptionCounter,
+                width,
+                eventCatchExceptionWastedCounter,
+                width,
+                eventCatchExceptionPromisingCounter,
+                width,
+                eventCatchExceptionUncaughtCounter,
+                width,
+                eventCatchExceptionCounter
+                    + eventCatchExceptionWastedCounter
+                    + eventCatchExceptionPromisingCounter
+                    + eventCatchExceptionUncaughtCounter,
+                width,
+                threadEndCleanCounter,
+                width,
+                threadEndUncaughtCounter,
+                width,
+                threadEndCleanCounter
+                    + threadEndUncaughtCounter
+                );
+
         free(outputFileName);
     }
 
