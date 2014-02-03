@@ -57,7 +57,6 @@
 #include "jthread_map.h"
 #include "jthrowable_circular_buf.h"
 
-
 /* Configuration of processed JVMTI Events */
 
 /* Enables checks based on JVMTI_EVENT_VM_DEATH */
@@ -194,6 +193,9 @@ jrawMonitorID gc_lock;
 
 /* Log file */
 FILE * fout = NULL;
+
+/* A flag signaling whether the print mutex is to be destroyed */
+static int mutex_to_destroy;
 
 /* Variable used to measure GC delays */
 clock_t gc_start_time;
@@ -2928,6 +2930,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
     jint       result;
 
     pthread_mutex_init(&abrt_print_mutex, /*attr*/NULL);
+    mutex_to_destroy = 1;
 
     INFO_PRINT("Agent_OnLoad\n");
     VERBOSE_PRINT("VERBOSE OUTPUT ENABLED\n");
@@ -3001,23 +3004,43 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
  */
 JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
 {
-    pthread_mutex_destroy(&abrt_print_mutex);
-
     INFO_PRINT("Agent_OnUnLoad\n");
+
     if (outputFileName != DISABLED_LOG_OUTPUT)
     {
         free(outputFileName);
+        outputFileName = DISABLED_LOG_OUTPUT;
     }
 
-    free(reportedCaughExceptionTypes);
+    if (NULL != reportedCaughExceptionTypes)
+    {
+        free(reportedCaughExceptionTypes);
+        reportedCaughExceptionTypes = NULL;
+    }
 
     if (fout != NULL)
     {
         fclose(fout);
+        fout = NULL;
     }
 
-    jthread_map_free(uncaughtExceptionMap);
-    jthread_map_free(threadMap);
+    if (NULL != uncaughtExceptionMap)
+    {
+        jthread_map_free(uncaughtExceptionMap);
+        uncaughtExceptionMap = NULL;
+    }
+
+    if (NULL != threadMap)
+    {
+        jthread_map_free(threadMap);
+        threadMap = NULL;
+    }
+
+    if (mutex_to_destroy)
+    {
+        pthread_mutex_destroy(&abrt_print_mutex);
+        mutex_to_destroy = 0;
+    }
 }
 
 
