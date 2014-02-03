@@ -2923,10 +2923,17 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
         char *options,
         void *reserved __UNUSED_VAR)
 {
+    static int already_called = 0;
     jvmtiEnv  *jvmti_env = NULL;
     jvmtiError error_code = JVMTI_ERROR_NONE;
     jint       result;
 
+    /* we need to make sure the agent is initialized once */
+    if (already_called) {
+        return;
+    }
+
+    already_called = 1;
     pthread_mutex_init(&abrt_print_mutex, /*attr*/NULL);
 
     INFO_PRINT("Agent_OnLoad\n");
@@ -3001,6 +3008,15 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
  */
 JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
 {
+    static int already_called = 0;
+
+    /* we need to make sure the agent is initialized once */
+    if (already_called) {
+        return;
+    }
+
+    already_called = 1;
+
     pthread_mutex_destroy(&abrt_print_mutex);
 
     INFO_PRINT("Agent_OnUnLoad\n");
