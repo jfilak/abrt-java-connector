@@ -2930,7 +2930,7 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
 
     /* we need to make sure the agent is initialized once */
     if (already_called) {
-        return;
+        return JNI_OK;
     }
 
     already_called = 1;
