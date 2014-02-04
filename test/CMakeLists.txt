@@ -317,5 +317,15 @@ _add_test(run_remote_thread 0)
 _add_analyze_test(not_reportable_1remote_class)
 _add_analyze_test(not_reportable_3remote_classes)
 
+_add_test_target(
+    run_three_times
+    SimpleTest
+    DEPENDS ${TEST_JAVA_TARGETS}
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException -agentlib=${AGENT_NAME}=output=/proc/pid/0/java.log -agentlib=${AGENT_NAME}=output=/proc/pid/1/java.log
+)
+_add_test(run_three_times 2)
+
+
+
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
 add_custom_target(run_all DEPENDS ${all_run_targets})
