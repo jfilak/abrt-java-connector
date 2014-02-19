@@ -699,6 +699,13 @@ static int get_tid(
 
 
 
+/*
+ * Takes information about an exception and returns human readable string
+ * describing the exception's occurrence.
+ *
+ * Cuts the description to not exceed MAX_REASON_MESSAGE_STRING_LENGTH
+ * characters.
+ */
 static char *format_exception_reason_message(
         int caught,
         const char *exception_fqdn,
@@ -1580,6 +1587,14 @@ static char* get_path_to_class(
 }
 
 
+
+/*
+ * Looks up a Class instance of given class name in the list of already loaded
+ * classes.
+ *
+ * Calls toString() method for each entry in the result to
+ * JVMTI::GetLoadedClasses() and compares its result to the given class name.
+ */
 static jclass find_class_in_loaded_class(
             jvmtiEnv   *jvmti_env,
             JNIEnv     *jni_env,
