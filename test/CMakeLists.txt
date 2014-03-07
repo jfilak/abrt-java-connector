@@ -58,6 +58,7 @@ _add_class_target(InnerExceptions TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(OverridenEqualExceptionTest TEST_JAVA_TARGETS)
 _add_class_target(NoException TEST_JAVA_TARGETS)
 _add_class_target(ThreadStressTest TEST_JAVA_TARGETS SimpleTest)
+_add_class_target(DataMethodTest TEST_JAVA_TARGETS)
 
 _add_jar_target(JarTest JAR_TEST_PATH SimpleTest ThreadCaughtException ThreadUncaughtException MultiThreadTest)
 set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
@@ -325,6 +326,13 @@ _add_test_target(
 )
 _add_test(run_three_times 2)
 
+_add_test_target(
+    run_data_method
+    DataMethodTest
+    2
+    DEPENDS ${TEST_JAVA_TARGETS}
+)
+_add_test(run_data_method 2)
 
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)

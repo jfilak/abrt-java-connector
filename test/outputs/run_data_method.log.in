@@ -1,0 +1,5 @@
+Uncaught exception java.lang.NullPointerException in method DataMethodTest.main()
+Exception in thread "main" java.lang.NullPointerException
+	at DataMethodTest.main(DataMethodTest.java:10) [file:@CMAKE_BINARY_DIR@/test/DataMethodTest.class]
+executable: @CMAKE_BINARY_DIR@/test/DataMethodTest.class
+DataMethodTest.debugStringData = 42 is the reason why!
