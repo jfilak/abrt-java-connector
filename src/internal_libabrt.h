@@ -25,6 +25,7 @@
 /* libreport include file */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-pedantic"
+#include <libabrt.h>
 #include <internal_libreport.h>
 #pragma GCC diagnostic pop
 

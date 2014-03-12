@@ -110,9 +110,6 @@
 /* Default main class name */
 #define UNKNOWN_CLASS_NAME "*unknown*"
 
-/* A pointer determining that log output is disabled */
-#define DISABLED_LOG_OUTPUT ((void *)-1)
-
 /* The standard stack trace caused by header */
 #define CAUSED_STACK_TRACE_HEADER "Caused by: "
 
@@ -185,16 +182,6 @@ typedef struct {
 
 
 
-/*
- * Flags for specification of destination for error reports
- */
-typedef enum {
-    ED_TERMINAL = 1,                ///< Report errors to the terminal
-    ED_ABRT     = ED_TERMINAL << 1, ///< Submit error reports to ABRT
-    ED_SYSLOG   = ED_ABRT << 1,     ///< Submit error reports to syslog
-    ED_JOURNALD = ED_SYSLOG << 1,   ///< Submit error reports to journald
-} T_errorDestination;
-
 /* Global monitor lock */
 jrawMonitorID shared_lock;
 
@@ -215,31 +202,14 @@ T_jvmEnvironment jvmEnvironment;
 /* Structure containing process properties. */
 T_processProperties processProperties;
 
-/* Global configuration of report destination */
-T_errorDestination reportErrosTo = ED_JOURNALD;
-
-/* Path (not necessary absolute) to output file */
-char *outputFileName = DISABLED_LOG_OUTPUT;
-
-/* Path (not necessary absolute) to output file */
-char **reportedCaughExceptionTypes;
-
-/* Determines which resource is used as executable */
-enum {
-    ABRT_EXECUTABLE_MAIN = 0,
-    ABRT_EXECUTABLE_THREAD = 1,
-};
-int executableFlags = 0;
-
-
 /* Map of buffer for already reported exceptions to prevent re-reporting */
 T_jthreadMap *threadMap;
 
 /* Map of uncaught exceptions. There should be only 1 per thread.*/
 T_jthreadMap *uncaughtExceptionMap;
 
-/* Only for testing, will be removed soon. */
-const char *fqdnDebugMethods[] = { "DataMethodTest.debugStringData", NULL };
+/* Configuration */
+T_configuration globalConfig;
 
 /* forward headers */
 static char* get_path_to_class(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jclass class, char *class_name, const char *stringize_method_name);
@@ -411,10 +381,10 @@ static FILE *get_log_file()
     /* Log file */
 
     if (NULL == fout
-        && DISABLED_LOG_OUTPUT != outputFileName)
+        && DISABLED_LOG_OUTPUT != globalConfig.outputFileName)
     {
         /* try to open output log file */
-        const char *fn = outputFileName;
+        const char *fn = globalConfig.outputFileName;
         if (NULL != fn)
         {
             struct stat sb;
@@ -428,7 +398,7 @@ static FILE *get_log_file()
             }
             else if (S_ISDIR(sb.st_mode))
             {
-                fn = append_file_to_path(&outputFileName, get_default_log_file_name());
+                fn = append_file_to_path(&globalConfig.outputFileName, get_default_log_file_name());
             }
         }
         else
@@ -446,8 +416,8 @@ static FILE *get_log_file()
         fout = fopen(fn, "wt");
         if (NULL == fout)
         {
-            free(outputFileName);
-            outputFileName = DISABLED_LOG_OUTPUT;
+            free(globalConfig.outputFileName);
+            globalConfig.outputFileName = DISABLED_LOG_OUTPUT;
             fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can not create output file %s. Disabling logging.\n", fn);
         }
     }
@@ -565,7 +535,7 @@ static int exception_is_intended_to_be_reported(
 {
     int retval = 0;
 
-    if (reportedCaughExceptionTypes != NULL)
+    if (globalConfig.reportedCaughExceptionTypes != NULL)
     {
         if (NULL == *exception_type)
         {
@@ -575,7 +545,7 @@ static int exception_is_intended_to_be_reported(
         }
 
         /* special cases for selected exceptions */
-        for (char **cursor = reportedCaughExceptionTypes; *cursor; ++cursor)
+        for (char **cursor = globalConfig.reportedCaughExceptionTypes; *cursor; ++cursor)
         {
             if (strcmp(*cursor, *exception_type) == 0)
             {
@@ -666,7 +636,7 @@ static void register_abrt_event(
         const char *backtrace,
         T_infoPair *additional_info)
 {
-    if ((reportErrosTo & ED_ABRT) == 0)
+    if ((globalConfig.reportErrosTo & ED_ABRT) == 0)
     {
         VERBOSE_PRINT("ABRT reporting is disabled\n");
         return;
@@ -712,13 +682,13 @@ static void report_stacktrace(
         const char *stacktrace,
         T_infoPair *additional_info)
 {
-    if (reportErrosTo & ED_SYSLOG)
+    if (globalConfig.reportErrosTo & ED_SYSLOG)
     {
         VERBOSE_PRINT("Reporting stack trace to syslog\n");
         syslog(LOG_ERR, "%s\n%s", message, stacktrace);
     }
 
-    if (reportErrosTo & ED_JOURNALD)
+    if (globalConfig.reportErrosTo & ED_JOURNALD)
     {
         VERBOSE_PRINT("Reporting stack trace to JournalD\n");
         sd_journal_send("MESSAGE=%s", message,
@@ -1370,13 +1340,13 @@ static T_infoPair *collect_additional_debug_information(
         jvmtiEnv *jvmti_env,
         JNIEnv   *jni_env)
 {
-    if (NULL == fqdnDebugMethods)
+    if (NULL == globalConfig.fqdnDebugMethods)
     {
         return NULL;
     }
 
     size_t cnt = 0;
-    const char *const *iter = (const char *const *)fqdnDebugMethods;
+    const char *const *iter = (const char *const *)globalConfig.fqdnDebugMethods;
     for ( ; NULL != *iter; ++iter)
     {
         ++cnt;
@@ -1390,7 +1360,7 @@ static T_infoPair *collect_additional_debug_information(
     }
 
     T_infoPair *info = ret_val;
-    iter = (const char *const *)fqdnDebugMethods;
+    iter = (const char *const *)globalConfig.fqdnDebugMethods;
     for( ; NULL != *iter; ++iter)
     {
         char *debug_class_name_str = strdup(*iter);
@@ -2334,7 +2304,7 @@ static void JNICALL callback_on_exception(
             jlocation catch_location __UNUSED_VAR)
 {
     /* This is caught exception and no caught exception is to be reported */
-    if (NULL != catch_method && NULL == reportedCaughExceptionTypes)
+    if (NULL != catch_method && NULL == globalConfig.reportedCaughExceptionTypes)
         return;
 
     char *exception_type_name = NULL;
@@ -2397,7 +2367,7 @@ static void JNICALL callback_on_exception(
 
             char *executable = NULL;
             char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object,
-                    (executableFlags & ABRT_EXECUTABLE_THREAD) ? &executable : NULL);
+                    (globalConfig.executableFlags & ABRT_EXECUTABLE_THREAD) ? &executable : NULL);
 
             T_infoPair *additional_info = collect_additional_debug_information(jvmti_env, jni_env);
 
@@ -3001,175 +2971,6 @@ jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env __UNUSED_VAR)
 
 
 /*
- * Returns NULL-terminated char *vector[]. Result itself must be freed,
- * but do no free list elements. IOW: do free(result), but never free(result[i])!
- * If separated_list is NULL or "", returns NULL.
- */
-static char **build_string_vector(const char *separated_list, char separator)
-{
-    char **vector = NULL;
-    if (separated_list && separated_list[0])
-    {
-        /* even w/o commas, we'll need two elements:
-         * vector[0] = "name"
-         * vector[1] = NULL
-         */
-        unsigned cnt = 2;
-
-        const char *cp = separated_list;
-        while (*cp)
-            cnt += (*cp++ == separator);
-
-        /* We place the string directly after the char *vector[cnt]: */
-        const size_t vector_num_bytes = cnt * sizeof(vector[0]) + (cp - separated_list) + 1;
-        vector = malloc(vector_num_bytes);
-        if (vector == NULL)
-        {
-            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
-            return NULL;
-        }
-        vector[cnt-1] = NULL;
-
-        /* Copy the origin string right behind the pointer region */
-        char *p = strcpy((char*)&vector[cnt], separated_list);
-
-        char **pp = vector;
-        *pp++ = p;
-        while (*p)
-        {
-            if (*p++ == separator)
-            {
-                /* Replace 'separator' by '\0' */
-                p[-1] = '\0';
-                /* Save pointer to the beginning of next string in the pointer region */
-                *pp++ = p;
-            }
-        }
-    }
-
-    return vector;
-}
-
-
-
-/*
- * Parses options passed from the command line and save results in global variables.
- * The function expects string in the following format:
- *  [key[=value][,key[=value]]...]
- *
- *  - separator is ','
- *  - keys without values are allowed
- *  - empty keys are allowed
- *  - multiple occurrences of a single key are allowed
- *  - empty values are allowed
- */
-void parse_commandline_options(char *options)
-{
-    if (NULL == options)
-    {
-        return;
-    }
-
-    char *savedptr_key = NULL;
-    for (char *key = options; /*break inside*/; options=NULL)
-    {
-        key = strtok_r(options, ",", &savedptr_key);
-        if (key == NULL)
-        {
-            break;
-        }
-
-        char *value = strchr(key, '=');
-        if (value != NULL)
-        {
-            value[0] = '\0';
-            value += 1;
-        }
-
-        VERBOSE_PRINT("Parsed option '%s' = '%s'\n", key, (value ? value : "(None)"));
-        if (strcmp("abrt", key) == 0)
-        {
-            if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
-            {
-                VERBOSE_PRINT("Enabling errors reporting to ABRT\n");
-                reportErrosTo |= ED_ABRT;
-            }
-        }
-        else if (strcmp("syslog", key) == 0)
-        {
-            if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
-            {
-                VERBOSE_PRINT("Enabling errors reporting to syslog\n");
-                reportErrosTo |= ED_SYSLOG;
-            }
-        }
-        else if (strcmp("journald", key) == 0)
-        {
-            if (value != NULL && (strcasecmp("off", value) == 0 || strcasecmp("no", value) == 0))
-            {
-                VERBOSE_PRINT("Disable errors reporting to JournalD\n");
-                reportErrosTo &= ~ED_JOURNALD;
-            }
-        }
-        else if(strcmp("output", key) == 0)
-        {
-            if (DISABLED_LOG_OUTPUT != outputFileName)
-            {
-                free(outputFileName);
-            }
-
-            if (value == NULL || value[0] == '\0')
-            {
-                VERBOSE_PRINT("Disabling output to log file\n");
-                outputFileName = DISABLED_LOG_OUTPUT;
-            }
-            else
-            {
-                outputFileName = strdup(value);
-                if (outputFileName == NULL)
-                {
-                    fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": strdup(output): out of memory\n");
-                    VERBOSE_PRINT("Can not configure output file to desired value\n");
-                    /* keep NULL in outputFileName -> the default name will be used */
-                }
-            }
-        }
-        else if(strcmp("caught", key) == 0)
-        {
-            reportedCaughExceptionTypes = build_string_vector(value, ':');
-        }
-        else if (strcmp("executable", key) == 0)
-        {
-            if (NULL == value || '\0' == value[0])
-            {
-                fprintf(stderr, "A value of '%s' option cannot be empty\n", key);
-            }
-            else if (strcmp("threadclass", value) == 0)
-            {
-                VERBOSE_PRINT("Use a thread class for 'executable'\n");
-                executableFlags |= ABRT_EXECUTABLE_THREAD;
-            }
-            else if (strcmp("mainclass", value) == 0)
-            {
-                /* Unset ABRT_EXECUTABLE_THREAD bit */
-                VERBOSE_PRINT("Use the main class for 'executable'\n");
-                executableFlags &= ~ABRT_EXECUTABLE_THREAD;
-            }
-            else
-            {
-                fprintf(stderr, "Unknown '%s' option's value '%s'\n", key, value);
-            }
-        }
-        else
-        {
-            fprintf(stderr, "Unknown option '%s'\n", key);
-        }
-    }
-}
-
-
-
-/*
  * Called when agent is loading into JVM.
  */
 JNIEXPORT jint JNICALL Agent_OnLoad(
@@ -3192,7 +2993,13 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
 
     INFO_PRINT("Agent_OnLoad\n");
     VERBOSE_PRINT("VERBOSE OUTPUT ENABLED\n");
-    parse_commandline_options(options);
+
+    configuration_initialize(&globalConfig);
+    parse_commandline_options(&globalConfig, options);
+    if (globalConfig.configurationFileName)
+    {
+        parse_configuration_file(&globalConfig, globalConfig.configurationFileName);
+    }
 
     /* check if JVM TI version is correct */
     result = (*jvm)->GetEnv(jvm, (void **) &jvmti_env, JVMTI_VERSION_1_0);
@@ -3274,12 +3081,8 @@ JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
     pthread_mutex_destroy(&abrt_print_mutex);
 
     INFO_PRINT("Agent_OnUnLoad\n");
-    if (outputFileName != DISABLED_LOG_OUTPUT)
-    {
-        free(outputFileName);
-    }
 
-    free(reportedCaughExceptionTypes);
+    configuration_destroy(&globalConfig);
 
     if (fout != NULL)
     {

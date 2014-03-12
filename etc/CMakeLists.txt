@@ -6,3 +6,9 @@ install(FILES java_event.conf.5 bugzilla_format_java.conf.5 bugzilla_formatdup_j
 
 install(FILES bugzilla_format_java.conf bugzilla_formatdup_java.conf
         DESTINATION ${SYSCONF_INSTALL_DIR}/libreport/plugins)
+
+install(FILES java.conf
+        DESTINATION ${SYSCONF_INSTALL_DIR}/abrt/plugins)
+
+install(FILES java.conf
+        DESTINATION ${SHARE_INSTALL_PREFIX}/abrt/conf.d/plugins)

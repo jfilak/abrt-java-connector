@@ -5,7 +5,7 @@ set(SERVER_URL "http://localhost")
 
 find_package(Java REQUIRED)
 
-subdirs(outputs)
+subdirs(outputs unittests)
 
 function(_get_target_names variable)
     foreach(tmp_name ${ARGN})
@@ -125,7 +125,7 @@ _add_test_target(
     run
     SimpleTest
     DEPENDS ${TEST_JAVA_TARGETS}
-    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException
+    AGENT_OPTIONS caught=java.lang.ArrayIndexOutOfBoundsException:java.lang.NullPointerException,debugmethod=DataMethodTest.debugStringData
 )
 _add_test(run 2)
 
@@ -331,6 +331,7 @@ _add_test_target(
     DataMethodTest
     2
     DEPENDS ${TEST_JAVA_TARGETS}
+    AGENT_OPTIONS debugmethod=DataMethodTest.debugStringData
 )
 _add_test(run_data_method 2)
 
