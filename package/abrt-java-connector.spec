@@ -18,6 +18,7 @@ BuildRequires:	abrt-devel
 BuildRequires:	java-1.7.0-openjdk-devel
 BuildRequires:	systemd-devel
 BuildRequires:	gettext
+BuildRequires:	check-devel
 
 Requires:	abrt
 
@@ -43,11 +44,13 @@ make install DESTDIR=%{buildroot}
 %config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_format_java.conf
 %config(noreplace) %{_sysconfdir}/libreport/plugins/bugzilla_formatdup_java.conf
 %config(noreplace) %{_sysconfdir}/libreport/events.d/java_event.conf
+%config(noreplace) %{_sysconfdir}/abrt/plugins/java.conf
 %{_bindir}/abrt-action-analyze-java
 %{_mandir}/man1/abrt-action-analyze-java.1*
 %{_mandir}/man5/java_event.conf.5*
 %{_mandir}/man5/bugzilla_format_java.conf.5*
 %{_mandir}/man5/bugzilla_formatdup_java.conf.5*
+%{_datadir}/abrt/conf.d/plugins/java.conf
 
 # install only unversioned shared object because the package is a Java plugin
 # and not a system library but unfortunately the library must be placed in ld
