@@ -110,9 +110,6 @@
 /* Default main class name */
 #define UNKNOWN_CLASS_NAME "*unknown*"
 
-/* A pointer determining that log output is disabled */
-#define DISABLED_LOG_OUTPUT ((void *)-1)
-
 /* The standard stack trace caused by header */
 #define CAUSED_STACK_TRACE_HEADER "Caused by: "
 
@@ -162,6 +159,16 @@ typedef struct {
 
 
 /*
+ * This structure represents a pair of additional information.
+ */
+typedef struct {
+    const char *label; ///< FQDN static method returning String
+    char *data;        ///< Return value of the method's call
+} T_infoPair;
+
+
+
+/*
  * This structure is representation of a single report of an exception.
  */
 typedef struct {
@@ -169,20 +176,11 @@ typedef struct {
     char *stacktrace;
     char *executable;
     char *exception_type_name;
+    T_infoPair *additional_info;
     jobject exception_object;
 } T_exceptionReport;
 
 
-
-/*
- * Flags for specification of destination for error reports
- */
-typedef enum {
-    ED_TERMINAL = 1,                ///< Report errors to the terminal
-    ED_ABRT     = ED_TERMINAL << 1, ///< Submit error reports to ABRT
-    ED_SYSLOG   = ED_ABRT << 1,     ///< Submit error reports to syslog
-    ED_JOURNALD = ED_SYSLOG << 1,   ///< Submit error reports to journald
-} T_errorDestination;
 
 /* Global monitor lock */
 jrawMonitorID shared_lock;
@@ -204,35 +202,108 @@ T_jvmEnvironment jvmEnvironment;
 /* Structure containing process properties. */
 T_processProperties processProperties;
 
-/* Global configuration of report destination */
-T_errorDestination reportErrosTo = ED_JOURNALD;
-
-/* Path (not necessary absolute) to output file */
-char *outputFileName = DISABLED_LOG_OUTPUT;
-
-/* Path (not necessary absolute) to output file */
-char **reportedCaughExceptionTypes;
-
-/* Determines which resource is used as executable */
-enum {
-    ABRT_EXECUTABLE_MAIN = 0,
-    ABRT_EXECUTABLE_THREAD = 1,
-};
-int executableFlags = 0;
-
-
 /* Map of buffer for already reported exceptions to prevent re-reporting */
 T_jthreadMap *threadMap;
 
 /* Map of uncaught exceptions. There should be only 1 per thread.*/
 T_jthreadMap *uncaughtExceptionMap;
 
+/* Configuration */
+T_configuration globalConfig;
 
 /* forward headers */
 static char* get_path_to_class(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jclass class, char *class_name, const char *stringize_method_name);
 static void print_jvm_environment_variables_to_file(FILE *out);
 static char* format_class_name(char *class_signature, char replace_to);
 static int check_jvmti_error(jvmtiEnv *jvmti_env, jvmtiError error_code, const char *str);
+static jclass find_class_in_loaded_class(jvmtiEnv *jvmti_env, JNIEnv *jni_env, const char *searched_class_name);
+
+
+
+/*
+ * Frees memory of given array terminated by empty entry.
+ */
+static void info_pair_vector_free(T_infoPair *pairs)
+{
+    if (NULL == pairs)
+    {
+        return;
+    }
+
+    for (T_infoPair *iter = pairs; iter->label; ++iter)
+    {
+        free(iter->data);
+    }
+
+    free(pairs);
+}
+
+
+
+/*
+ * Converts given array terminated by empty entry into String.
+ */
+static char *info_pair_vector_to_string(T_infoPair *pairs)
+{
+    if (NULL == pairs)
+    {
+        return NULL;
+    }
+
+    size_t required_bytes = 0;
+    for (T_infoPair *iter = pairs; NULL != iter->label; ++iter)
+    {
+        required_bytes += strlen(iter->label) + strlen(iter->data) + strlen(" = \n");
+    }
+
+    if (required_bytes == 0)
+    {
+        return NULL;
+    }
+
+    char *contents = (char *)malloc(required_bytes);
+    if (NULL == contents)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
+        return NULL;
+    }
+
+    size_t to_write = required_bytes;
+    char *pointer = contents;
+    for (T_infoPair *iter = pairs; NULL != iter->label; ++iter)
+    {
+        const int written = snprintf(pointer, to_write, "%s = %s\n", iter->label, iter->data);
+        if (written < 0)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": snprintf() failed to write to already malloced memory");
+            break;
+        }
+
+        pointer += written;
+    }
+
+    return contents;
+}
+
+
+
+/*
+ * Frees memory of given report structure.
+ */
+static void exception_report_free(T_exceptionReport *report)
+{
+    if (NULL == report)
+    {
+        return;
+    }
+
+    free(report->message);
+    free(report->stacktrace);
+    free(report->executable);
+    free(report->exception_type_name);
+
+    info_pair_vector_free(report->additional_info);
+}
 
 
 
@@ -310,10 +381,10 @@ static FILE *get_log_file()
     /* Log file */
 
     if (NULL == fout
-        && DISABLED_LOG_OUTPUT != outputFileName)
+        && DISABLED_LOG_OUTPUT != globalConfig.outputFileName)
     {
         /* try to open output log file */
-        const char *fn = outputFileName;
+        const char *fn = globalConfig.outputFileName;
         if (NULL != fn)
         {
             struct stat sb;
@@ -327,7 +398,7 @@ static FILE *get_log_file()
             }
             else if (S_ISDIR(sb.st_mode))
             {
-                fn = append_file_to_path(&outputFileName, get_default_log_file_name());
+                fn = append_file_to_path(&globalConfig.outputFileName, get_default_log_file_name());
             }
         }
         else
@@ -345,8 +416,8 @@ static FILE *get_log_file()
         fout = fopen(fn, "wt");
         if (NULL == fout)
         {
-            free(outputFileName);
-            outputFileName = DISABLED_LOG_OUTPUT;
+            free(globalConfig.outputFileName);
+            globalConfig.outputFileName = DISABLED_LOG_OUTPUT;
             fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": can not create output file %s. Disabling logging.\n", fn);
         }
     }
@@ -464,7 +535,7 @@ static int exception_is_intended_to_be_reported(
 {
     int retval = 0;
 
-    if (reportedCaughExceptionTypes != NULL)
+    if (globalConfig.reportedCaughExceptionTypes != NULL)
     {
         if (NULL == *exception_type)
         {
@@ -474,7 +545,7 @@ static int exception_is_intended_to_be_reported(
         }
 
         /* special cases for selected exceptions */
-        for (char **cursor = reportedCaughExceptionTypes; *cursor; ++cursor)
+        for (char **cursor = globalConfig.reportedCaughExceptionTypes; *cursor; ++cursor)
         {
             if (strcmp(*cursor, *exception_type) == 0)
             {
@@ -541,15 +612,31 @@ static void add_process_properties_data(problem_data_t *pd)
 
 
 /*
+ * Add additional debug info item.
+ */
+static void add_additional_info_data(problem_data_t *pd, T_infoPair *additional_info)
+{
+    char *contents = info_pair_vector_to_string(additional_info);
+    if (NULL != contents)
+    {
+        problem_data_add_text_editable(pd, "java_custom_debug_info", contents);
+        free(contents);
+    }
+}
+
+
+
+/*
  * Register new ABRT event using given message and a method name.
  * If reportErrosTo global flags doesn't contain ED_ABRT, this function does nothing.
  */
 static void register_abrt_event(
         const char *executable,
         const char *message,
-        const char *backtrace)
+        const char *backtrace,
+        T_infoPair *additional_info)
 {
-    if ((reportErrosTo & ED_ABRT) == 0)
+    if ((globalConfig.reportErrosTo & ED_ABRT) == 0)
     {
         VERBOSE_PRINT("ABRT reporting is disabled\n");
         return;
@@ -576,6 +663,7 @@ static void register_abrt_event(
     /* add optional fields */
     add_jvm_environment_data(pd);
     add_process_properties_data(pd);
+    add_additional_info_data(pd, additional_info);
 
     /* sends problem data to abrtd over the socket */
     int res = problem_data_send_to_abrt(pd);
@@ -591,15 +679,16 @@ static void register_abrt_event(
 static void report_stacktrace(
         const char *executable,
         const char *message,
-        const char *stacktrace)
+        const char *stacktrace,
+        T_infoPair *additional_info)
 {
-    if (reportErrosTo & ED_SYSLOG)
+    if (globalConfig.reportErrosTo & ED_SYSLOG)
     {
         VERBOSE_PRINT("Reporting stack trace to syslog\n");
         syslog(LOG_ERR, "%s\n%s", message, stacktrace);
     }
 
-    if (reportErrosTo & ED_JOURNALD)
+    if (globalConfig.reportErrosTo & ED_JOURNALD)
     {
         VERBOSE_PRINT("Reporting stack trace to JournalD\n");
         sd_journal_send("MESSAGE=%s", message,
@@ -619,11 +708,20 @@ static void report_stacktrace(
     {
         log_print("executable: %s\n", executable);
     }
+    if (additional_info)
+    {
+        char *info = info_pair_vector_to_string(additional_info);
+        if (NULL != info)
+        {
+            log_print("%s\n", info);
+        }
+        free(info);
+    }
 
     if (NULL != stacktrace)
     {
         VERBOSE_PRINT("Reporting stack trace to ABRT");
-        register_abrt_event(executable, message, stacktrace);
+        register_abrt_event(executable, message, stacktrace, additional_info);
     }
 }
 
@@ -699,6 +797,13 @@ static int get_tid(
 
 
 
+/*
+ * Takes information about an exception and returns human readable string
+ * describing the exception's occurrence.
+ *
+ * Cuts the description to not exceed MAX_REASON_MESSAGE_STRING_LENGTH
+ * characters.
+ */
 static char *format_exception_reason_message(
         int caught,
         const char *exception_fqdn,
@@ -1201,6 +1306,8 @@ static void print_jvm_environment_variables(void)
 #endif
 }
 
+
+
 static void print_jvm_environment_variables_to_file(FILE *out)
 {
     fprintf(out, "%-30s: %s\n", "sun.java.command", null2empty(jvmEnvironment.command_and_params));
@@ -1220,6 +1327,114 @@ static void print_jvm_environment_variables_to_file(FILE *out)
     fprintf(out, "%-30s: %s\n", "java.vm.specification_name", null2empty(jvmEnvironment.java_vm_specification_name));
     fprintf(out, "%-30s: %s\n", "java.vm.specification.vendor", null2empty(jvmEnvironment.java_vm_specification_vendor));
     fprintf(out, "%-30s: %s\n", "java.vm.specification.version", null2empty(jvmEnvironment.java_vm_specification_version));
+}
+
+
+
+/*
+ * Goes throw the list of FQDN static methods returning java.Lang.String, tries
+ * to call them and returns their results in an array terminated by empty
+ * entry.
+ */
+static T_infoPair *collect_additional_debug_information(
+        jvmtiEnv *jvmti_env,
+        JNIEnv   *jni_env)
+{
+    if (NULL == globalConfig.fqdnDebugMethods)
+    {
+        return NULL;
+    }
+
+    size_t cnt = 0;
+    const char *const *iter = (const char *const *)globalConfig.fqdnDebugMethods;
+    for ( ; NULL != *iter; ++iter)
+    {
+        ++cnt;
+    }
+
+    T_infoPair *ret_val = (T_infoPair *)malloc(sizeof(*ret_val) * (cnt + 1));
+    if (NULL == ret_val)
+    {
+        fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
+        return NULL;
+    }
+
+    T_infoPair *info = ret_val;
+    iter = (const char *const *)globalConfig.fqdnDebugMethods;
+    for( ; NULL != *iter; ++iter)
+    {
+        char *debug_class_name_str = strdup(*iter);
+        if (debug_class_name_str == NULL)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": strdup(): out of memory");
+            /* We want to finish this method call */
+            break;
+        }
+
+        /* name.space.class.method -> name.space.class + method
+         */
+        char *debug_method_name = strrchr(debug_class_name_str, '.');
+        if (NULL == debug_method_name)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": Debug method '%s' is not in FQDN format\n", debug_class_name_str);
+            goto next_debug_method;
+        }
+
+        debug_method_name[0] = '\0';
+        ++debug_method_name;
+
+        /* Try to find instance of Class class for the debug class name.
+         * Looks only in the list of already loaded classes as we don't
+         * want to use Class Loader to find the class on disk. This
+         * approache ensures that the debug method is called only for
+         * relevant applications.
+         */
+        jclass debug_class = find_class_in_loaded_class(jvmti_env, jni_env, debug_class_name_str);
+        if (NULL == debug_class)
+        {
+            VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": Could not find class of '%s'\n", *iter);
+            goto next_debug_method;
+        }
+
+        jmethodID debug_method = (*jni_env)->GetStaticMethodID(jni_env, debug_class, debug_method_name, "()Ljava/lang/String;");
+        if (check_and_clear_exception(jni_env) || NULL == debug_method)
+        {
+            VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": Could not find debug method '%s'\n", *iter);
+            goto next_debug_method;
+        }
+
+        jstring debug_string = (*jni_env)->CallStaticObjectMethod(jni_env, debug_class, debug_method);
+        if (check_and_clear_exception(jni_env))
+        {
+            VERBOSE_PRINT(__FILE__ ":" STRINGIZE(__LINE__)": Exception occurred in debug method '%s'\n", *iter);
+            goto next_debug_method;
+        }
+
+        info->label = *iter;
+        {
+            char *tmp = (char*)(*jni_env)->GetStringUTFChars(jni_env, debug_string, NULL);
+            info->data = strdup(tmp);
+            (*jni_env)->ReleaseStringUTFChars(jni_env, debug_string, tmp);
+        }
+
+        if (NULL == info->data)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": strdup(): out of memory");
+            /* We want to finish this method call */
+            break;
+        }
+
+        ++info;
+
+next_debug_method:
+        free(debug_class_name_str);
+    }
+
+    /* stop */
+    info->label = NULL;
+    info->data = NULL;
+
+    return ret_val;
 }
 
 
@@ -1323,13 +1538,10 @@ static void JNICALL callback_on_thread_end(
             {
                 report_stacktrace(NULL != rpt->executable ? rpt->executable : processProperties.main_class,
                                   NULL != rpt->message ? rpt->message : "Uncaught exception",
-                                  rpt->stacktrace);
+                                  rpt->stacktrace, rpt->additional_info);
             }
 
-            free(rpt->message);
-            free(rpt->stacktrace);
-            free(rpt->executable);
-            free(rpt->exception_type_name);
+            exception_report_free(rpt);
         }
 
         if (threads_exc_buf != NULL)
@@ -1580,6 +1792,14 @@ static char* get_path_to_class(
 }
 
 
+
+/*
+ * Looks up a Class instance of given class name in the list of already loaded
+ * classes.
+ *
+ * Calls toString() method for each entry in the result to
+ * JVMTI::GetLoadedClasses() and compares its result to the given class name.
+ */
 static jclass find_class_in_loaded_class(
             jvmtiEnv   *jvmti_env,
             JNIEnv     *jni_env,
@@ -2084,7 +2304,7 @@ static void JNICALL callback_on_exception(
             jlocation catch_location __UNUSED_VAR)
 {
     /* This is caught exception and no caught exception is to be reported */
-    if (NULL != catch_method && NULL == reportedCaughExceptionTypes)
+    if (NULL != catch_method && NULL == globalConfig.reportedCaughExceptionTypes)
         return;
 
     char *exception_type_name = NULL;
@@ -2147,7 +2367,9 @@ static void JNICALL callback_on_exception(
 
             char *executable = NULL;
             char *stack_trace_str = generate_thread_stack_trace(jvmti_env, jni_env, tname, exception_object,
-                    (executableFlags & ABRT_EXECUTABLE_THREAD) ? &executable : NULL);
+                    (globalConfig.executableFlags & ABRT_EXECUTABLE_THREAD) ? &executable : NULL);
+
+            T_infoPair *additional_info = collect_additional_debug_information(jvmti_env, jni_env);
 
             const char *report_message = message;
             if (NULL == report_message)
@@ -2174,6 +2396,9 @@ static void JNICALL callback_on_exception(
                     rpt->executable = executable;
                     executable = NULL;
 
+                    rpt->additional_info = additional_info;
+                    additional_info = NULL;
+
                     rpt->exception_object = exception_object;
 
                     jthread_map_push(uncaughtExceptionMap, tid, (T_exceptionReport *)rpt);
@@ -2183,7 +2408,8 @@ static void JNICALL callback_on_exception(
             {
                 report_stacktrace(NULL != executable ? executable : processProperties.main_class,
                         report_message,
-                        stack_trace_str);
+                        stack_trace_str,
+                        additional_info);
 
                 if (NULL == threads_exc_buf)
                     threads_exc_buf = create_exception_buf_for_thread(jni_env, tid);
@@ -2198,6 +2424,7 @@ static void JNICALL callback_on_exception(
             free(executable);
             free(message);
             free(stack_trace_str);
+            info_pair_vector_free(additional_info);
 
 callback_on_exception_cleanup:
         /* cleapup */
@@ -2338,7 +2565,7 @@ static void JNICALL callback_on_exception_catch(
             char *message = format_exception_reason_message(/*caught*/1, rpt->exception_type_name,  class_name_ptr, method_name_ptr);
             report_stacktrace(NULL != rpt->executable ? rpt->executable : processProperties.main_class,
                               NULL != message ? message : "Caught exception",
-                              rpt->stacktrace);
+                              rpt->stacktrace, rpt->additional_info);
 
             if (NULL == threads_exc_buf)
                 threads_exc_buf = create_exception_buf_for_thread(jni_env, tid);
@@ -2364,10 +2591,7 @@ callback_on_exception_catch_cleanup:
         }
     }
 
-    free(rpt->message);
-    free(rpt->stacktrace);
-    free(rpt->executable);
-    free(rpt->exception_type_name);
+    exception_report_free(rpt);
 
 callback_on_exception_catch_exit:
     exit_critical_section(jvmti_env, shared_lock);
@@ -2747,175 +2971,6 @@ jvmtiError print_jvmti_version(jvmtiEnv *jvmti_env __UNUSED_VAR)
 
 
 /*
- * Returns NULL-terminated char *vector[]. Result itself must be freed,
- * but do no free list elements. IOW: do free(result), but never free(result[i])!
- * If separated_list is NULL or "", returns NULL.
- */
-static char **build_string_vector(const char *separated_list, char separator)
-{
-    char **vector = NULL;
-    if (separated_list && separated_list[0])
-    {
-        /* even w/o commas, we'll need two elements:
-         * vector[0] = "name"
-         * vector[1] = NULL
-         */
-        unsigned cnt = 2;
-
-        const char *cp = separated_list;
-        while (*cp)
-            cnt += (*cp++ == separator);
-
-        /* We place the string directly after the char *vector[cnt]: */
-        const size_t vector_num_bytes = cnt * sizeof(vector[0]) + (cp - separated_list) + 1;
-        vector = malloc(vector_num_bytes);
-        if (vector == NULL)
-        {
-            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": malloc(): out of memory");
-            return NULL;
-        }
-        vector[cnt-1] = NULL;
-
-        /* Copy the origin string right behind the pointer region */
-        char *p = strcpy((char*)&vector[cnt], separated_list);
-
-        char **pp = vector;
-        *pp++ = p;
-        while (*p)
-        {
-            if (*p++ == separator)
-            {
-                /* Replace 'separator' by '\0' */
-                p[-1] = '\0';
-                /* Save pointer to the beginning of next string in the pointer region */
-                *pp++ = p;
-            }
-        }
-    }
-
-    return vector;
-}
-
-
-
-/*
- * Parses options passed from the command line and save results in global variables.
- * The function expects string in the following format:
- *  [key[=value][,key[=value]]...]
- *
- *  - separator is ','
- *  - keys without values are allowed
- *  - empty keys are allowed
- *  - multiple occurrences of a single key are allowed
- *  - empty values are allowed
- */
-void parse_commandline_options(char *options)
-{
-    if (NULL == options)
-    {
-        return;
-    }
-
-    char *savedptr_key = NULL;
-    for (char *key = options; /*break inside*/; options=NULL)
-    {
-        key = strtok_r(options, ",", &savedptr_key);
-        if (key == NULL)
-        {
-            break;
-        }
-
-        char *value = strchr(key, '=');
-        if (value != NULL)
-        {
-            value[0] = '\0';
-            value += 1;
-        }
-
-        VERBOSE_PRINT("Parsed option '%s' = '%s'\n", key, (value ? value : "(None)"));
-        if (strcmp("abrt", key) == 0)
-        {
-            if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
-            {
-                VERBOSE_PRINT("Enabling errors reporting to ABRT\n");
-                reportErrosTo |= ED_ABRT;
-            }
-        }
-        else if (strcmp("syslog", key) == 0)
-        {
-            if (value != NULL && (strcasecmp("on", value) == 0 || strcasecmp("yes", value) == 0))
-            {
-                VERBOSE_PRINT("Enabling errors reporting to syslog\n");
-                reportErrosTo |= ED_SYSLOG;
-            }
-        }
-        else if (strcmp("journald", key) == 0)
-        {
-            if (value != NULL && (strcasecmp("off", value) == 0 || strcasecmp("no", value) == 0))
-            {
-                VERBOSE_PRINT("Disable errors reporting to JournalD\n");
-                reportErrosTo &= ~ED_JOURNALD;
-            }
-        }
-        else if(strcmp("output", key) == 0)
-        {
-            if (DISABLED_LOG_OUTPUT != outputFileName)
-            {
-                free(outputFileName);
-            }
-
-            if (value == NULL || value[0] == '\0')
-            {
-                VERBOSE_PRINT("Disabling output to log file\n");
-                outputFileName = DISABLED_LOG_OUTPUT;
-            }
-            else
-            {
-                outputFileName = strdup(value);
-                if (outputFileName == NULL)
-                {
-                    fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": strdup(output): out of memory\n");
-                    VERBOSE_PRINT("Can not configure output file to desired value\n");
-                    /* keep NULL in outputFileName -> the default name will be used */
-                }
-            }
-        }
-        else if(strcmp("caught", key) == 0)
-        {
-            reportedCaughExceptionTypes = build_string_vector(value, ':');
-        }
-        else if (strcmp("executable", key) == 0)
-        {
-            if (NULL == value || '\0' == value[0])
-            {
-                fprintf(stderr, "A value of '%s' option cannot be empty\n", key);
-            }
-            else if (strcmp("threadclass", value) == 0)
-            {
-                VERBOSE_PRINT("Use a thread class for 'executable'\n");
-                executableFlags |= ABRT_EXECUTABLE_THREAD;
-            }
-            else if (strcmp("mainclass", value) == 0)
-            {
-                /* Unset ABRT_EXECUTABLE_THREAD bit */
-                VERBOSE_PRINT("Use the main class for 'executable'\n");
-                executableFlags &= ~ABRT_EXECUTABLE_THREAD;
-            }
-            else
-            {
-                fprintf(stderr, "Unknown '%s' option's value '%s'\n", key, value);
-            }
-        }
-        else
-        {
-            fprintf(stderr, "Unknown option '%s'\n", key);
-        }
-    }
-}
-
-
-
-/*
  * Called when agent is loading into JVM.
  */
 JNIEXPORT jint JNICALL Agent_OnLoad(
@@ -2938,7 +2993,13 @@ JNIEXPORT jint JNICALL Agent_OnLoad(
 
     INFO_PRINT("Agent_OnLoad\n");
     VERBOSE_PRINT("VERBOSE OUTPUT ENABLED\n");
-    parse_commandline_options(options);
+
+    configuration_initialize(&globalConfig);
+    parse_commandline_options(&globalConfig, options);
+    if (globalConfig.configurationFileName)
+    {
+        parse_configuration_file(&globalConfig, globalConfig.configurationFileName);
+    }
 
     /* check if JVM TI version is correct */
     result = (*jvm)->GetEnv(jvm, (void **) &jvmti_env, JVMTI_VERSION_1_0);
@@ -3020,12 +3081,8 @@ JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm __UNUSED_VAR)
     pthread_mutex_destroy(&abrt_print_mutex);
 
     INFO_PRINT("Agent_OnUnLoad\n");
-    if (outputFileName != DISABLED_LOG_OUTPUT)
-    {
-        free(outputFileName);
-    }
 
-    free(reportedCaughExceptionTypes);
+    configuration_destroy(&globalConfig);
 
     if (fout != NULL)
     {

@@ -57,6 +57,88 @@ pthread_mutex_t abrt_print_mutex __UNUSED_VAR;
     } while(0)
 #endif // SILENT
 
+
+
+/*
+ * Flags for specification of destination for error reports
+ */
+typedef enum {
+    ED_TERMINAL = 1,                ///< Report errors to the terminal
+    ED_ABRT     = ED_TERMINAL << 1, ///< Submit error reports to ABRT
+    ED_SYSLOG   = ED_ABRT << 1,     ///< Submit error reports to syslog
+    ED_JOURNALD = ED_SYSLOG << 1,   ///< Submit error reports to journald
+} T_errorDestination;
+
+
+
+/*
+ * Determines which resource is used as executable
+ */
+enum {
+    ABRT_EXECUTABLE_MAIN = 0,
+    ABRT_EXECUTABLE_THREAD = 1,
+};
+
+
+
+/* A pointer determining that log output is disabled */
+#define DISABLED_LOG_OUTPUT ((void *)-1)
+
+
+
+typedef struct {
+    /* Global configuration of report destination */
+    T_errorDestination reportErrosTo;
+
+    /* Which frame use for the executable field */
+    int executableFlags;
+
+    /* Path (not necessary absolute) to output file */
+    char *outputFileName;
+
+    /* Path (not necessary absolute) to configuration file */
+    char *configurationFileName;
+
+    /* NULL terminated list of exception types to report when caught */
+    char **reportedCaughExceptionTypes;
+
+    /* NULL terminated list of debug methods called when an exceptions is to be
+     * reported */
+    char **fqdnDebugMethods;
+
+    int configured;
+} T_configuration;
+
+
+
+/*
+ * Initializes an configuration structure
+ */
+void configuration_initialize(T_configuration *conf);
+
+
+
+/*
+ * Releases all resources
+ */
+void configuration_destroy(T_configuration *conf);
+
+
+
+/*
+ * Parses an options string in form of JVM agent options
+ */
+void parse_commandline_options(T_configuration *conf, char *options);
+
+
+
+/*
+ * Parses a configuration file written in libreport configuration file format
+ */
+void parse_configuration_file(T_configuration *conf, const char *filename);
+
+
+
 #endif // __ABRT_CHECKER__
 
 

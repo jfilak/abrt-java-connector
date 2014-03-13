@@ -16,10 +16,20 @@ It needs to be compiled as a shared native library (.so) and then loaded into
 JVM using -agentlib command line parameter.
 
 
+Configuration
+-------------
+
+The agent can be configured either via configuration file or via command line
+arguments. The command line arguments have higher priority and overwrites
+values loaded from the configuration file.
+
+The default path to the configuration file is '/etc/abrt/plugins/java.conf'.
+
+
 Examples
 --------
 
-Before you can run the example, you need to make sure that
+Before you can run the examples, you need to make sure that
 libabrt-java-connector.so is placed somewhere in the ld searched directories
 or configure LD_LIBRARY_PATH environment variable to point to a directory
 containing the library.
@@ -76,7 +86,7 @@ $  java -agentlib:abrt-java-connector=journald=off $MyClass -platform.jvmtiSuppo
 $  java -agentlib:abrt-java-connector=syslog=on $MyClass -platform.jvmtiSupported true
 
 Example5:
-- this example shows how configure abrt-java-connector to fill 'executable'
+- this example shows how to configure abrt-java-connector to fill 'executable'
   ABRT file with a path to a class on the bottom of the stack trace (the first
   method of thread)
 - this feature can be enabled via 'executable' option which can contain either
@@ -86,3 +96,23 @@ $  java -agentlib:abrt-java-connector=executable=threadclass $MyClass -platform.
 
 - 'mainclass' is used when 'executable' option is not passed and 'executable'
   file is filled with full path $MyClass
+
+
+Example6:
+- this example shows how to enrich the exception report with extra debug information
+- abrt-java-connector is capable to call a static method returning String at
+  time of processing exception
+- while creating the exception report methods from the list stored in
+  'debugmethod' option are called, not all of them, but only those whose defining
+  class was already loaded by 'System Class Loader'
+
+$  java -agentlib:abrt-java-connector=debugmethod=com.example.$MyClass.getMethod $MyClass
+
+
+Example7:
+- this example shows how to change the path to configuration file
+- the default configuration file path is '/etc/abrt/plugins/java.conf'
+- empty 'conffile' option means do not read any configuration file
+
+
+$  java -agentlib:abrt-java-connector=conffile=/etc/foo/example.conf $MyClass
