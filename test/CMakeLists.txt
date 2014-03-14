@@ -29,6 +29,10 @@ function(_add_jar_target base_name output)
     _get_target_names(CLASS_DEPENCIES ${ARGN})
 
     foreach(tmp_name ${ARGN})
+        if (NOT ENTRYPOINT)
+            set(ENTRYPOINT ${tmp_name})
+        endif()
+
         set(CONTENTS ${CONTENTS} ${tmp_name}.class)
     endforeach(tmp_name)
 
@@ -36,7 +40,7 @@ function(_add_jar_target base_name output)
     set(${output} ${real_path} PARENT_SCOPE)
     add_custom_command(
         OUTPUT ${real_path}
-        COMMAND ${Java_JAR_EXECUTABLE} cvf ${base_name}.jar ${CONTENTS}
+        COMMAND ${Java_JAR_EXECUTABLE} cvfe ${base_name}.jar ${ENTRYPOINT} ${CONTENTS}
         DEPENDS ${CLASS_DEPENCIES}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
@@ -335,6 +339,21 @@ _add_test_target(
 )
 _add_test(run_data_method 2)
 
+add_custom_target(
+    run_jar_relative
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=output=run_jar_relative.log -jar JarTest.jar
+    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+_add_test(run_jar_relative 2)
+
+add_custom_target(
+    run_jar_absolute
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=output=run_jar_absolute.log -jar ${JAR_TEST_PATH}
+    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+_add_test(run_jar_absolute 2)
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
 add_custom_target(run_all DEPENDS ${all_run_targets})
