@@ -1199,7 +1199,30 @@ static char *get_main_class(
 
     /* strip the second part of sun.java.command property */
     char *space = strchrnul(class_name, ' ');
-    *space = 0;
+    *space = '\0';
+
+    /* check whether the executed entity is a jar file */
+    if (strlen(class_name) > 4 &&
+            (space[-4] == '.' && space[-3] == 'j' && space[-2] == 'a' && space[-1] == 'r'))
+    {
+        char jarpath[PATH_MAX + 1] = { '\0' };
+        if (realpath(class_name, jarpath) == NULL)
+        {
+            fprintf(stderr, "Error %d: Could get real path of '%s'\n", errno, class_name);
+            strncpy(jarpath, class_name, sizeof(jarpath));
+        }
+
+        char *executable = strdup(jarpath);
+        if (NULL == executable)
+        {
+            fprintf(stderr, __FILE__ ":" STRINGIZE(__LINE__) ": strdup(): out of memory");
+            return NULL;
+        }
+
+        return executable;
+    }
+
+    /* the executed entity is a Java class */
 
     /* replace all '.' to '/' */
     string_replace(class_name, '.', '/');
