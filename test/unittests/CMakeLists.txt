@@ -5,7 +5,6 @@ add_definitions(-DCONFIG_FILE_ALL_ENTRIES_POPULATED="${CMAKE_CURRENT_SOURCE_DIR}
 include_directories(${PC_ABRT_INCLUDE_DIRS})
 include_directories(${PC_CHECK_INCLUDE_DIRS})
 include_directories("${CMAKE_SOURCE_DIR}/src")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=c99 -pedantic -O0 -g")
 
 add_executable(testsuite check_abrt_java_connector.c)
 target_link_libraries(testsuite ${PC_CHECK_LIBRARIES})

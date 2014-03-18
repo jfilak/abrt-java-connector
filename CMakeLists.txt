@@ -78,4 +78,8 @@ pkg_check_modules(PC_ABRT REQUIRED abrt)
 add_definitions(-D_GNU_SOURCE)
 set(AJC_ENABLE_NLS true)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=c99 -pedantic")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g -DVERBOSE")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Werror -DSILENT")
+
 subdirs(src etc test utils po)

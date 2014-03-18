@@ -22,10 +22,6 @@ add_definitions(-DPACKAGE=\"${CMAKE_PROJECT_NAME}\")
 add_definitions(-DLOCALEDIR=\"${LOCALE_INSTALL_DIR}\")
 include_directories(${utils_BINARY_DIR})
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=gnu99 -pedantic")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -DVERBOSE")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DSILENT")
-
 add_executable(abrt-action-analyze-java ${AbrtActionAnalyzeJava_SRCS})
 target_link_libraries(abrt-action-analyze-java ${PC_SATYR_LIBRARIES})
 target_link_libraries(abrt-action-analyze-java ${PC_LIBREPORT_LIBRARIES})

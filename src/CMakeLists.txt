@@ -6,10 +6,6 @@ include_directories(${PC_LIBREPORT_INCLUDE_DIRS})
 include_directories(${PC_ABRT_INCLUDE_DIRS})
 include_directories(${PC_JOURNALD_INCLUDE_DIRS})
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=c99 -pedantic")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -DVERBOSE")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DSILENT")
-
 set(AbrtChecker_SRCS configuration.c abrt-checker.c
         jthrowable_circular_buf.c jthread_map.c)
 
