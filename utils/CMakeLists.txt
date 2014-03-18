@@ -11,11 +11,14 @@ if (AJC_ENABLE_NLS)
     endif (HAVE_LOCALE_H)
 endif (AJC_ENABLE_NLS)
 
+pkg_check_modules(PC_RPM REQUIRED rpm)
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 include_directories(${PC_SATYR_INCLUDE_DIRS})
 include_directories(${PC_LIBREPORT_INCLUDE_DIRS})
 include_directories(${PC_ABRT_INCLUDE_DIRS})
+include_directories(${PC_RPM_INCLUDE_DIRS})
 
 add_definitions(-DHAVE_CONFIG_H)
 add_definitions(-DPACKAGE=\"${CMAKE_PROJECT_NAME}\")
@@ -26,6 +29,7 @@ add_executable(abrt-action-analyze-java ${AbrtActionAnalyzeJava_SRCS})
 target_link_libraries(abrt-action-analyze-java ${PC_SATYR_LIBRARIES})
 target_link_libraries(abrt-action-analyze-java ${PC_LIBREPORT_LIBRARIES})
 target_link_libraries(abrt-action-analyze-java ${PC_ABRT_LIBRARIES})
+target_link_libraries(abrt-action-analyze-java ${PC_RPM_LIBRARIES})
 
 install(TARGETS abrt-action-analyze-java DESTINATION ${BIN_INSTALL_DIR})
 

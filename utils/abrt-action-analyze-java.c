@@ -22,6 +22,10 @@
 #include <satyr/java/thread.h>
 #include <satyr/java/frame.h>
 
+#include <rpm/rpmts.h>
+#include <rpm/rpmcli.h>
+#include <rpm/rpmdb.h>
+
 #include <abrt/libabrt.h>
 #include <stdlib.h>
 
@@ -167,6 +171,82 @@ work_out_list_of_remote_urls(struct sr_java_stacktrace *stacktrace)
     return NULL;
 }
 
+static int
+contains_unkown_class(struct sr_java_stacktrace *stacktrace)
+{
+    struct sr_java_thread *thread = stacktrace->threads;
+    while (NULL != thread)
+    {
+        struct sr_java_frame *frame = thread->frames;
+        while (NULL != frame)
+        {
+            if (NULL == frame->class_path
+                && !frame->is_native && !frame->is_exception)
+            {
+                return 1;
+            }
+            frame = frame->next;
+        }
+        thread = thread->next;
+    }
+
+    return 0;
+}
+
+static int
+contains_unpackaged_path(struct sr_java_stacktrace *stacktrace)
+{
+    int rc = rpmReadConfigFiles((const char *) NULL, (const char *) NULL);
+    if (rc)
+    {
+        error_msg("Could not read RPM config files");
+        return 0;
+    }
+
+    int retval = 0;
+    rpmts ts = rpmtsCreate();
+    rc = rpmtsOpenDB(ts, O_RDONLY);
+    if (rc)
+    {
+        error_msg("Could not open RPM database for reading");
+        goto contains_unpackaged_path_finish;
+    }
+
+    struct sr_java_thread *thread = stacktrace->threads;
+    while (0 == retval && NULL != thread)
+    {
+        struct sr_java_frame *frame = thread->frames;
+        while (0 == retval && NULL != frame)
+        {
+            if (NULL != frame->class_path)
+            {
+                rpmdbMatchIterator iter = rpmtsInitIterator(ts, RPMTAG_BASENAMES,
+                        frame->class_path, /*length: NULL terminated*/ 0);
+                Header header = rpmdbNextIterator(iter);
+                rpmdbFreeIterator(iter);
+
+                if (NULL == header)
+                {
+                    retval = 1;
+                    break;
+                }
+            }
+            frame = frame->next;
+        }
+        thread = thread->next;
+    }
+
+contains_unpackaged_path_finish:
+    /* Closes the database as well */
+    rpmtsFree(ts);
+
+    rpmFreeRpmrc();
+    rpmFreeCrypto();
+    rpmFreeMacros(NULL);
+
+    return retval;
+}
+
 int main(int argc, char *argv[])
 {
 #if ENABLE_NLS
@@ -193,13 +273,15 @@ int main(int argc, char *argv[])
         OPT_v = 1 << 0,
         OPT_d = 1 << 1,
         OPT_f = 1 << 2,
-        OPT_o = 1 << 3,
+        OPT_r = 1 << 3,
+        OPT_o = 1 << 4,
     };
     /* Keep enum above and order of options below in sync! */
     struct options program_options[] = {
         OPT__VERBOSE(&g_verbose),
         OPT_STRING('d', "dumpdir", &dump_dir_name, "DIR", _("Problem directory")),
         OPT_STRING('f', "backtrace", &backtrace_file, "FILE", _("Path to backtrace")),
+        OPT_BOOL('r',   "norpmverify", NULL, _("Do not verify that all paths belongs to an rpm package")),
         OPT_BOOL('o', "stdout", NULL, _("Print results on standard output")),
         { 0 }
     };
@@ -271,7 +353,6 @@ int main(int argc, char *argv[])
     results_iter->nofree = 1;
     ++results_iter;
 
-    sr_java_stacktrace_free(stacktrace);
 
     if (NULL != remote_files_csv)
     {
@@ -285,6 +366,30 @@ int main(int argc, char *argv[])
         ++results_iter;
         free(remote_files_csv);
     }
+    else if (contains_unkown_class(stacktrace))
+    {
+        results_iter->name = FILENAME_NOT_REPORTABLE;
+        results_iter->data = xasprintf(
+        _("This problem is not reportable because of the low quality of stack trace. " \
+        "The stack trace contains lines having unknown source files and unknown " \
+        "classes. Such stack traces are usually produced by a non-official code. " \
+        "If this is your case, please contact the provider of the failing application. " \
+        "Otherwise contact the package maintainers directly via e-mail." )
+        );
+        ++results_iter;
+    }
+    else if ((opts & OPT_r) == 0 && contains_unpackaged_path(stacktrace))
+    {
+        results_iter->name = FILENAME_NOT_REPORTABLE;
+        results_iter->data = xasprintf(
+        _("This problem has been caused by a proprietary code which has not been "
+        "provided any official package. Please contact the provider of the "
+        "proprietary code.")
+        );
+        ++results_iter;
+    }
+
+    sr_java_stacktrace_free(stacktrace);
 
     if (opts & OPT_o)
     {
