@@ -1,8 +1,8 @@
-%global commit a265e4e6162084cb17fd9507525345c86cfb8d10
+%global commit c933894f160345a685ee2b1664adc1d1c65a4875
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 Name:		abrt-java-connector
-Version:	1.0.8
+Version:	1.0.9
 Release:	1%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
@@ -70,6 +70,11 @@ make test
 
 
 %changelog
+* Tue Mar 18 2014 Jakub Filak <jfilak@redhat.com> - 1.0.9-1
+- Make the agent configurable via a configuration file
+- Include custom debug info in bug reports
+- Make the detection of 'executable' working with JAR files
+
 * Wed Jan 22 2014 Jakub Filak <jfilak@redhat.com> - 1.0.8-1
 - Do not report exceptions caught in a native method
 - Mark stack traces with 3rd party classes as not-reportable
