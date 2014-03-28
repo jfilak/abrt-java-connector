@@ -1,0 +1,13 @@
+Exception in thread "JHttpSocket GET" java.lang.ThreadDeath
+	at java.lang.Thread.stop(Thread.java:835) [jar:file:/etc/services!/java/lang/Thread.class]
+	at iM.e(Unknown Source) [unknown]
+	at bP.e(Unknown Source) [unknown]
+	at bN.e(Unknown Source) [unknown]
+	at bR.h(Unknown Source) [unknown]
+	at bR.e(Unknown Source) [unknown]
+	at bT.e(Unknown Source) [unknown]
+	at bB.c(Unknown Source) [unknown]
+	at bB.b(Unknown Source) [unknown]
+	at bI.b_(Unknown Source) [unknown]
+	at ko.b(Unknown Source) [unknown]
+	at jd.run(Unknown Source) [unknown]
