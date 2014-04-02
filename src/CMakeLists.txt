@@ -1,4 +1,3 @@
-find_package(JNI REQUIRED)
 include_directories(${JAVA_INCLUDE_PATH} ${JAVA_INCLUDE_PATH2})
 
 pkg_check_modules(PC_JOURNALD REQUIRED libsystemd-journal)

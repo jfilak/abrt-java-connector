@@ -75,6 +75,8 @@ pkg_check_modules(PC_SATYR REQUIRED satyr)
 pkg_check_modules(PC_LIBREPORT REQUIRED libreport)
 pkg_check_modules(PC_ABRT REQUIRED abrt)
 
+find_package(JNI REQUIRED)
+
 add_definitions(-D_GNU_SOURCE)
 set(AJC_ENABLE_NLS true)
 

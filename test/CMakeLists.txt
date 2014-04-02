@@ -3,6 +3,8 @@ project(test)
 set(HTTP_DIR "/var/www/html")
 set(SERVER_URL "http://localhost")
 
+include_directories(${JAVA_INCLUDE_PATH} ${JAVA_INCLUDE_PATH2})
+
 find_package(Java REQUIRED)
 
 subdirs(outputs unittests)
@@ -63,6 +65,7 @@ _add_class_target(OverridenEqualExceptionTest TEST_JAVA_TARGETS)
 _add_class_target(NoException TEST_JAVA_TARGETS)
 _add_class_target(ThreadStressTest TEST_JAVA_TARGETS SimpleTest)
 _add_class_target(DataMethodTest TEST_JAVA_TARGETS)
+_add_class_target(ExceptionCaugthInNative TEST_JAVA_TARGETS SimpleTest)
 
 _add_jar_target(JarTest JAR_TEST_PATH SimpleTest ThreadCaughtException ThreadUncaughtException MultiThreadTest)
 set(REMOTE_JAR_PATH ${HTTP_DIR}/JarTest.jar)
@@ -356,6 +359,18 @@ add_custom_target(
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 _add_test(run_jar_absolute 2)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -std=c++11 -pedantic -O0 -g -fPIC")
+
+add_library(ExceptionCaugthInNative SHARED ExceptionCaugthInNative.cpp)
+
+add_custom_target(
+    run_caught_in_native
+    COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -Djava.library.path=${CMAKE_BINARY_DIR}/test -agentlib:${AGENT_NAME}=output=run_caught_in_native.log ExceptionCaugthInNative
+    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS} ExceptionCaugthInNative
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+_add_test(run_caught_in_native 0)
 
 get_directory_property(all_run_targets ALL_RUN_TARGETS)
 add_custom_target(run_all DEPENDS ${all_run_targets})
