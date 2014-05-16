@@ -9,6 +9,8 @@ include_directories(${PC_JOURNALD_INCLUDE_DIRS})
 set(AbrtChecker_SRCS configuration.c abrt-checker.c
         jthrowable_circular_buf.c jthread_map.c)
 
+add_definitions(-DVERSION=\"${PROJECT_VERSION}\")
+
 add_library(AbrtChecker SHARED ${AbrtChecker_SRCS})
 set_target_properties(
     AbrtChecker

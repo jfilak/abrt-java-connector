@@ -664,6 +664,7 @@ static void register_abrt_event(
     add_jvm_environment_data(pd);
     add_process_properties_data(pd);
     add_additional_info_data(pd, additional_info);
+    problem_data_add_text_noteditable(pd, "abrt-java-connector", VERSION);
 
     /* sends problem data to abrtd over the socket */
     int res = problem_data_send_to_abrt(pd);
