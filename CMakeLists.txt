@@ -47,10 +47,6 @@ if(NOT LIB_INSTALL_DIR)
     set(LIB_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
 
-if(NOT LIBEXEC_INSTALL_DIR)
-    set(LIBEXEC_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/libexec)
-endif()
-
 if(NOT SYSCONF_INSTALL_DIR)
     set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc)
 endif()
@@ -67,6 +63,7 @@ if(NOT LOCALE_INSTALL_DIR)
     set(LOCALE_INSTALL_DIR ${SHARE_INSTALL_PREFIX}/locale)
 endif()
 
+
 add_custom_target(
     dist
     COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${git_commit}/ HEAD | gzip > ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz
@@ -78,14 +75,6 @@ pkg_check_modules(PC_SATYR REQUIRED satyr)
 pkg_check_modules(PC_LIBREPORT REQUIRED libreport)
 pkg_check_modules(PC_ABRT REQUIRED abrt)
 
-if(NOT SYSTEMD_SYSTEM_UNIT_DIR)
-    execute_process(COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=systemdsystemunitdir systemd RESULT_VARIABLE process_result OUTPUT_VARIABLE SYSTEMD_SYSTEM_UNIT_DIR)
-    string(REGEX REPLACE "(\r?\n)+$" "" SYSTEMD_SYSTEM_UNIT_DIR "${SYSTEMD_SYSTEM_UNIT_DIR}")
-    if(${process_result})
-        message(FATAL_ERROR "Could not get a path to systemd unit directory")
-    endif()
-endif()
-
 add_definitions(-D_GNU_SOURCE)
 set(AJC_ENABLE_NLS true)
 
@@ -93,4 +82,4 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=c99 -pedantic")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g -DVERBOSE")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Werror -DSILENT")
 
-subdirs(src etc test utils po init-scripts)
+subdirs(src etc test utils po)
