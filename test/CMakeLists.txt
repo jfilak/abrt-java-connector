@@ -106,6 +106,7 @@ function(_add_test_target target_name)
     add_custom_target(
         ${target_name}
         ${pre_command}
+# -Xdebug -Xrunjdwp:transport=dt_socket,address=8001,server=y,suspend=n + jdb -attach 8001
         COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}="${agent_options},abrt=$$ABRT_ENABLED,output=${target_name}.log" ${java_params}
         DEPENDS AbrtChecker ${depends}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
