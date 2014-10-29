@@ -21,4 +21,4 @@ target_link_libraries(AbrtChecker ${PC_LIBREPORT_LIBRARIES})
 target_link_libraries(AbrtChecker ${PC_ABRT_LIBRARIES})
 target_link_libraries(AbrtChecker ${PC_JOURNALD_LIBRARIES})
 
-install(TARGETS AbrtChecker DESTINATION ${LIB_INSTALL_DIR})
+install(TARGETS AbrtChecker DESTINATION ${JNIAGENTLIB_INSTALL_DIR})
