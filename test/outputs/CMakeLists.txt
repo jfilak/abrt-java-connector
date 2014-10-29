@@ -14,5 +14,9 @@ foreach(infileName ${inFiles})
         set(infile "${CMAKE_CURRENT_SOURCE_DIR}/${infileName}")
     endif()
 
+    if(EXISTS "${infile}.${JAVA_TESTOUTPUT_VER}")
+        set(infile "${infile}.${JAVA_TESTOUTPUT_VER}")
+    endif()
+
     configure_file("${infile}" "${outfile}")
 endforeach(infileName)

@@ -5,6 +5,9 @@ set(SERVER_URL "http://localhost")
 
 find_package(Java REQUIRED)
 
+set(JAVA_TESTOUTPUT_VER java-${Java_VERSION_MAJOR}.${Java_VERSION_MINOR})
+message("Requires testsuite ver: ${JAVA_TESTOUTPUT_VER}")
+
 subdirs(outputs unittests)
 
 function(_get_target_names variable)
