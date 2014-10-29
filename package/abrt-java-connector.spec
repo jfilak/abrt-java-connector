@@ -15,7 +15,7 @@ BuildRequires:	cmake
 BuildRequires:	satyr-devel
 BuildRequires:	libreport-devel
 BuildRequires:	abrt-devel
-BuildRequires:	java-1.7.0-openjdk-devel
+BuildRequires:	java-devel
 BuildRequires:	systemd-devel
 BuildRequires:	gettext
 BuildRequires:	check-devel
@@ -53,10 +53,12 @@ make install DESTDIR=%{buildroot}
 %{_mandir}/man5/bugzilla_formatdup_java.conf.5*
 %{_datadir}/abrt/conf.d/plugins/java.conf
 
-# install only unversioned shared object because the package is a Java plugin
-# and not a system library but unfortunately the library must be placed in ld
-# library paths
-%{_libdir}/lib%{name}.so
+# Applications may use a single subdirectory under/usr/lib.
+# http://www.pathname.com/fhs/pub/fhs-2.3.html#PURPOSE22
+#
+# Java does not support multilib.
+# https://fedorahosted.org/fesco/ticket/961
+%{_prefix}/lib/abrt-java-connector
 
 
 %check
@@ -64,13 +66,6 @@ make test || {
     cat Testing/Temporary/LastTest.log
     exit 1
 }
-
-
-%post -p /sbin/ldconfig
-
-
-%postun -p /sbin/ldconfig
-
 
 
 %changelog
