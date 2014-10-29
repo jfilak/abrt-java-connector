@@ -4,7 +4,7 @@ project(abrt-java-connector)
 enable_testing()
 
 # Beware, PROJECT_VERSION will be overridden by information from git
-set(PROJECT_VERSION "1.0.10")
+set(PROJECT_VERSION "1.1.0")
 
 message("Configuring ${PROJECT_NAME}-${PROJECT_VERSION} on ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
 

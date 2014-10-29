@@ -1,8 +1,8 @@
-%global commit fdf80c5de2400437cc2fbe56f14aacbf346274df
+%global commit 230b72697c7c43db747b2644b17cb2685d1539de
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 Name:		abrt-java-connector
-Version:	1.0.10
+Version:	1.1.0
 Release:	1%{?dist}
 Summary:	JNI Agent library converting Java exceptions to ABRT problems
 
@@ -69,6 +69,10 @@ make test || {
 
 
 %changelog
+* Wed Oct 29 2014 Jakub Filak <jfilak@redhat.com> - 1.1.0-1
+- Support java-1.8-openjdk
+- Install the library to /usr/lib/abrt-java-connector on all arches
+
 * Fri Apr 4 2014 Jakub Filak <jfilak@redhat.com> - 1.0.10-1
 - Temporarily ignore failures of reporter-ureport until ABRT start using FAF2
 - Prevent users from reporting low quality stack traces
