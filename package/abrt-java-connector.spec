@@ -60,7 +60,10 @@ make install DESTDIR=%{buildroot}
 
 
 %check
-make test
+make test || {
+    cat Testing/Temporary/LastTest.log
+    exit 1
+}
 
 
 %post -p /sbin/ldconfig
