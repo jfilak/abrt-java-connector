@@ -13,8 +13,18 @@ Usage
 -----
 
 It needs to be compiled as a shared native library (.so) and then loaded into
-JVM using -agentlib command line parameter.
+JVM using either -agentlib or -agentpath command line parameter. The first
+parameter requires the library's file name and works only if the library is
+placed in one of the ld searched directories or a directory included in
+LD_LIBRARY_PATH environment variable. The latter command line argument works
+with an arbitrary, valid absolute path pointing to the library.
 
+The default path to the abrt-java-connector library is
+'/usr/lib/abrt-java-connector/libabrt-java-connector.so' and must be passed to
+JVM using '-agentpath' command line argument mentioned above.
+
+It is guaranteed that the agent properly works with java-1.7.0-openjdk and
+java-1.8.0-openjdk.
 
 Configuration
 -------------
