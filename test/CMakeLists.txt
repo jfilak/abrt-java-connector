@@ -186,22 +186,24 @@ _add_test_target(
 )
 _add_test(run_bad_class 2)
 
-# Disabled because JVM catches the ClassNotFoundException in a native method and exits gracefully
-#_add_test_target(
-#    run_missing_class_test
-#    MissingClassTest
-#    PRE rm -f MissingClassTest.class
-#    DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
-#    AGENT_OPTIONS executable=threadclass
-#)
-#_add_test(run_missing_class_test 2)
-add_custom_target(
+# Disable for JVM-1.7, because it catches the ClassNotFoundException in a native method and exits gracefully
+_add_test_target(
     run_missing_class_test
-    COMMAND rm -f MissingClassTest.class && LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=output=run_missing_class.log MissingClassTest || test ! -e run_missing_class.log
-    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    MissingClassTest
+    PRE rm -f MissingClassTest.class
+    DEPENDS ${TEST_JAVA_TARGETS} ${JAR_TEST_PATH}
+    AGENT_OPTIONS executable=threadclass
 )
-add_test(test_run_missing_class_test make run_missing_class_test)
+_add_test(run_missing_class_test 2)
+
+# Disable for JVM-1.8, because missing class causes an uncaught exception
+#add_custom_target(
+#    run_missing_class_test
+#    COMMAND rm -f MissingClassTest.class && LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=output=run_missing_class.log MissingClassTest || test ! -e run_missing_class.log
+#    DEPENDS AbrtChecker ${TEST_JAVA_TARGETS}
+#    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+#)
+#add_test(test_run_missing_class_test make run_missing_class_test)
 
 _add_test_target(
     run_try_finally
