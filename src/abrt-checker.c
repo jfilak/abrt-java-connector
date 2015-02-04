@@ -39,8 +39,11 @@
 #include <linux/limits.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <systemd/sd-journal.h>
 #include <syslog.h>
+
+#if HAVE_SYSTEMD_JOURNAL
+#include <systemd/sd-journal.h>
+#endif
 
 /* Shared macros and so on */
 #include "abrt-checker.h"
@@ -689,6 +692,7 @@ static void report_stacktrace(
         syslog(LOG_ERR, "%s\n%s", message, stacktrace);
     }
 
+#if HAVE_SYSTEMD_JOURNAL
     if (globalConfig.reportErrosTo & ED_JOURNALD)
     {
         VERBOSE_PRINT("Reporting stack trace to JournalD\n");
@@ -698,6 +702,7 @@ static void report_stacktrace(
                         NULL);
 
     }
+#endif
 
     log_print("%s\n", message);
 
