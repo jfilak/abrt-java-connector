@@ -126,3 +126,18 @@ Example7:
 
 
 $  java -agentlib:abrt-java-connector=conffile=/etc/foo/example.conf $MyClass
+
+
+Building from sources
+---------------------
+
+This project uses CMake build system but a Makefile for GNU Make, which defines
+all the targets you usually need to run, is also provided.
+
+$ make build
+$ make run
+$ make check
+$ make rpm
+$ make distclean
+
+All build results are stored in ./bin directory.
