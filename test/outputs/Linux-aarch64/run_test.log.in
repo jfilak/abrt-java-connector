@@ -1,22 +1,25 @@
-Caught exception java.io.FileNotFoundException in method java.io.FileInputStream.open()
+Caught exception java.io.FileNotFoundException in method java.io.FileInputStream.open0()
 Exception in thread "main" java.io.FileNotFoundException: _wrong_file_ (No such file or directory)
-	at java.io.FileInputStream.open(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
+	at java.io.FileInputStream.open0(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
+	at java.io.FileInputStream.open(FileInputStream.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
 	at java.io.FileInputStream.<init>(FileInputStream.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
 	at Test.readWrongFile(Test.java:89) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.fileRelatedIssues(Test.java:461) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:513) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 executable: @CMAKE_BINARY_DIR@/test/Test.class
-Caught exception java.io.FileNotFoundException in method java.io.FileInputStream.open()
+Caught exception java.io.FileNotFoundException in method java.io.FileInputStream.open0()
 Exception in thread "main" java.io.FileNotFoundException: /root/.bashrc (Permission denied)
-	at java.io.FileInputStream.open(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
+	at java.io.FileInputStream.open0(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
+	at java.io.FileInputStream.open(FileInputStream.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
 	at java.io.FileInputStream.<init>(FileInputStream.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileInputStream.class]
 	at Test.readUnreadableFile(Test.java:111) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.fileRelatedIssues(Test.java:462) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:513) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 executable: @CMAKE_BINARY_DIR@/test/Test.class
-Caught exception java.io.FileNotFoundException in method java.io.FileOutputStream.open()
+Caught exception java.io.FileNotFoundException in method java.io.FileOutputStream.open0()
 Exception in thread "main" java.io.FileNotFoundException: /root/.bashrc (Permission denied)
-	at java.io.FileOutputStream.open(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileOutputStream.class]
+	at java.io.FileOutputStream.open0(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileOutputStream.class]
+	at java.io.FileOutputStream.open(FileOutputStream.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileOutputStream.class]
 	at java.io.FileOutputStream.<init>(FileOutputStream.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileOutputStream.class]
 	at java.io.FileOutputStream.<init>(FileOutputStream.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/io/FileOutputStream.class]
 	at Test.writeToUnwritableFile(Test.java:134) [file:@CMAKE_BINARY_DIR@/test/Test.class]
