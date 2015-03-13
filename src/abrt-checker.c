@@ -1039,29 +1039,6 @@ static void get_thread_name(
 }
 
 
-/*
- * Read executable name from link /proc/${PID}/exe
- */
-static char* malloc_readlink(const char *linkname)
-{
-    char buf[PATH_MAX + 1];
-    int len;
-
-    len = readlink(linkname, buf, sizeof(buf)-1);
-    if (len >= 0)
-    {
-        buf[len] = '\0';
-        char *p = malloc(strlen(buf) + 1);
-        if (p)
-        {
-            strcpy(p, buf);
-        }
-        return p;
-    }
-    return NULL;
-}
-
-
 
 /*
  * Read executable name from the special file /proc/${PID}/exe
