@@ -49,21 +49,16 @@ make install DESTDIR=%{buildroot}
 %{_mandir}/man5/bugzilla_format_java.conf.5*
 %{_mandir}/man5/bugzilla_formatdup_java.conf.5*
 
-# install only unversioned shared object because the package is a Java plugin
-# and not a system library but unfortunately the library must be placed in ld
-# library paths
-%{_libdir}/lib%{name}.so
+# Applications may use a single subdirectory under/usr/lib.
+# http://www.pathname.com/fhs/pub/fhs-2.3.html#PURPOSE22
+#
+# Java does not support multilib.
+# https://fedorahosted.org/fesco/ticket/961
+%{_prefix}/lib/abrt-java-connector
 
 
 %check
 make test
-
-
-%post -p /sbin/ldconfig
-
-
-%postun -p /sbin/ldconfig
-
 
 
 %changelog
