@@ -141,3 +141,7 @@ $ make rpm
 $ make distclean
 
 All build results are stored in ./bin directory.
+
+The `check' make target will fail if you run it under root user. There are some
+test cases that try to generate 'File Access Denied' exceptions and the easiest
+way to achieve that is to try to access a root's file.
