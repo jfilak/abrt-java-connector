@@ -60,4 +60,4 @@ distclean:
 
 .PHONY: check
 check: build
-	cd $(OUT_DIR) && make test
+	if [ "_0" != "_$$(id -u)" ]; then cd $(OUT_DIR) && make test; else echo "Cannot run tests under root user."; exit 1; fi
