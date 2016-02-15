@@ -22,15 +22,7 @@
  * Wrapper header for all ABRT includes
  */
 
-/* libreport include file */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-pedantic"
+/* abrt include files */
 #include <libabrt.h>
-#include <internal_libreport.h>
-#pragma GCC diagnostic pop
-
-#include <problem_data.h>
-
-/* ABRT is not necessary now */
 
 #endif /* __INTERNAL_LIBABRT_H */
