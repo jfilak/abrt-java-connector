@@ -27,7 +27,7 @@ Exception in thread "main" java.io.FileNotFoundException: /root/.bashrc (Permiss
 	at Test.main(Test.java:513) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 executable: @CMAKE_BINARY_DIR@/test/Test.class
 Caught exception java.net.UnknownHostException in method java.net.Inet6AddressImpl.lookupAllHostAddr()
-Exception in thread "main" java.net.UnknownHostException: xyzzy: unknown error
+Exception in thread "main" java.net.UnknownHostException: xyzzy: Name or service not known
 	at java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/Inet6AddressImpl.class]
 	at java.net.InetAddress$2.lookupAllHostAddr(InetAddress.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/InetAddress$2.class]
 	at java.net.InetAddress.getAddressesFromNameService(InetAddress.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/InetAddress.class]
@@ -75,7 +75,7 @@ Exception in thread "main" java.lang.NumberFormatException: null
 	at sun.net.www.protocol.http.HttpURLConnection.getInputStream0(HttpURLConnection.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/net/www/protocol/http/HttpURLConnection.class]
 	at sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/net/www/protocol/http/HttpURLConnection.class]
 	at java.net.URL.openStream(URL.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/URL.class]
-	at Test.readFromURL(Test.java:238) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.readFromURL(Test.java:237) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:475) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 executable: @CMAKE_BINARY_DIR@/test/Test.class
@@ -84,7 +84,7 @@ Exception in thread "main" java.io.FileNotFoundException: http://localhost:54321
 	at sun.net.www.protocol.http.HttpURLConnection.getInputStream0(HttpURLConnection.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/net/www/protocol/http/HttpURLConnection.class]
 	at sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/sun/net/www/protocol/http/HttpURLConnection.class]
 	at java.net.URL.openStream(URL.java:LINENO) [jar:file:JAVA_AND_SYSTEM_SPECIFIC_PATH/rt.jar!/java/net/URL.class]
-	at Test.readFromURL(Test.java:238) [file:@CMAKE_BINARY_DIR@/test/Test.class]
+	at Test.readFromURL(Test.java:237) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.networkRelatedIssues(Test.java:475) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 	at Test.main(Test.java:514) [file:@CMAKE_BINARY_DIR@/test/Test.class]
 executable: @CMAKE_BINARY_DIR@/test/Test.class
