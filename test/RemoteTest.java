@@ -73,11 +73,19 @@ public class RemoteTest {
         server.setExecutor(null); // creates a default executor
         server.start();
 
+        /* Download the jar in order to fully intialize the second thread.
+         * Since Java-1.8 HttpExchange.sendResponseHeaders() adds 'Date' header
+         * with value formated according to locale. Getting the locale leads to
+         * loading of some other class which results in a deadlock.
+         */
+        URL remoteJarUrl = new URL("http://localhost:54321/JarTest.jar");
+        InputStream input = remoteJarUrl.openStream();
+        input.close();
+
         try {
             Method method = URLClassLoader.class.getDeclaredMethod("addURL", new Class[]{URL.class});
             method.setAccessible(true);
-            method.invoke(ClassLoader.getSystemClassLoader(), new Object[]{new URL("http://localhost:54321/JarTest.jar")});
-
+            method.invoke(ClassLoader.getSystemClassLoader(), new Object[]{remoteJarUrl});
             /* Loaded these classes into cache. */
             final String needed[] = {"SimpleTest", "ThreadUncaughtException", "ThreadCaughtException"};
             for (String requiredClass : needed) {

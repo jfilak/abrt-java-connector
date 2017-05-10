@@ -5,6 +5,9 @@ set(SERVER_URL "http://localhost")
 
 find_package(Java REQUIRED)
 
+set(JAVA_TESTOUTPUT_VER java-${Java_VERSION_MAJOR}.${Java_VERSION_MINOR})
+message("Requires testsuite ver: ${JAVA_TESTOUTPUT_VER}")
+
 subdirs(outputs)
 
 function(_get_target_names variable)
@@ -106,6 +109,7 @@ function(_add_test_target target_name)
     add_custom_target(
         ${target_name}
         ${pre_command}
+# -Xdebug -Xrunjdwp:transport=dt_socket,address=8001,server=y,suspend=n + jdb -attach 8001
         COMMAND LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}="${agent_options},abrt=$$ABRT_ENABLED,output=${target_name}.log" ${java_params}
         DEPENDS AbrtChecker ${depends}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -177,7 +181,8 @@ _add_test_target(
 )
 _add_test(run_bad_class 2)
 
-# Disabled because JVM catches the ClassNotFoundException in a native method and exits gracefully
+# Disable for JVM-1.7, because it catches the ClassNotFoundException in a native method and exits gracefully
+# 2015-07-29: Disable for JVM-1.8, because java started catching the exception in a native method again
 #_add_test_target(
 #    run_missing_class_test
 #    MissingClassTest
@@ -186,6 +191,9 @@ _add_test(run_bad_class 2)
 #    AGENT_OPTIONS executable=threadclass
 #)
 #_add_test(run_missing_class_test 2)
+
+# Disable for JVM-1.8, because missing class causes an uncaught exception
+# 2015-07-29: Enable for all versions, because this error has stopped causing an uncaught exception with JVM-1.8
 add_custom_target(
     run_missing_class_test
     COMMAND rm -f MissingClassTest.class && LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src ${Java_JAVA_EXECUTABLE} -agentlib:${AGENT_NAME}=output=run_missing_class.log MissingClassTest || test ! -e run_missing_class.log

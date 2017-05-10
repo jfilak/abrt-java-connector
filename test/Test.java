@@ -68,14 +68,14 @@ public class Test {
      */
     public static void allocateMemory() {
         /* allocated size = 4096*4096*4 bytes */
-        int[]      intArray1D = new int[DIM_SIZE * DIM_SIZE];
+        { int[]      intArray1D = new int[DIM_SIZE * DIM_SIZE]; }
         /* allocated size = 4096*4096*4 bytes */
-        int[][]    intArray2D = new int[DIM_SIZE][DIM_SIZE];
-        double[]   doubleArray1D = new double[DIM_SIZE * DIM_SIZE];
-        double[][] doubleArray2D = new double[DIM_SIZE][DIM_SIZE];
+        { int[][]    intArray2D = new int[DIM_SIZE][DIM_SIZE]; }
+        { double[]   doubleArray1D = new double[DIM_SIZE * (DIM_SIZE/2)]; }
+        { double[][] doubleArray2D = new double[DIM_SIZE][DIM_SIZE/2]; }
 
         // string could be allocated using some base array
-        String s = new String(new byte[DIM_SIZE * DIM_SIZE]);
+        { String s = new String(new byte[DIM_SIZE * DIM_SIZE]); }
     }
 
 
